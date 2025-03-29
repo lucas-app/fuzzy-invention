@@ -13,14 +13,21 @@ const getApiToken = () => '501c980772e98d56cab53109683af59c36ce5778';
 
 // Project IDs
 const PROJECTS = {
-  TEXT_SENTIMENT: 1,  // Your existing text sentiment project
-  IMAGE_CLASSIFICATION: 2,  // Your new image classification project
+  TEXT_SENTIMENT: 1,       // Text sentiment project
+  IMAGE_CLASSIFICATION: 2, // Image classification project
+  AUDIO_CLASSIFICATION: 3, // Audio classification project
+  SURVEY: 4,               // Survey project
+  GEOSPATIAL_LABELING: 5,  // Geospatial labeling project
 };
 
 // Storage keys
 const STORAGE_KEYS = {
   TEXT_SENTIMENT: 'label_studio_text_tasks',
   IMAGE_CLASSIFICATION: 'label_studio_image_tasks',
+  AUDIO_CLASSIFICATION: 'label_studio_audio_tasks',
+  SURVEY: 'label_studio_survey_tasks',
+  GEOSPATIAL_LABELING: 'label_studio_geospatial_tasks',
+  COMPLETED_TASKS: 'COMPLETED_TASKS',
 };
 
 // Endpoints
@@ -183,8 +190,8 @@ export const getCachedTasks = async (projectType = 'TEXT_SENTIMENT') => {
 /**
  * Submit an annotation to Label Studio
  * @param {number} taskId - The task ID to annotate
- * @param {string} value - The annotation value (sentiment or animal type)
- * @param {string} projectType - Type of project (TEXT_SENTIMENT or IMAGE_CLASSIFICATION)
+ * @param {string} value - The annotation value (e.g., sentiment, yes/no, animal type)
+ * @param {string} projectType - Type of project (TEXT_SENTIMENT, IMAGE_CLASSIFICATION, etc.)
  * @returns {Promise<Object>} The response from the API
  */
 export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIMENT') => {
@@ -216,6 +223,48 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
           {
             from_name: 'animal_type',
             to_name: 'image',
+            type: 'choices',
+            value: {
+              choices: [value]
+            }
+          }
+        ]
+      };
+    } else if (projectType === 'AUDIO_CLASSIFICATION') {
+      annotation = {
+        task: taskId,
+        result: [
+          {
+            from_name: 'audio_class',
+            to_name: 'audio',
+            type: 'choices',
+            value: {
+              choices: [value]
+            }
+          }
+        ]
+      };
+    } else if (projectType === 'SURVEY') {
+      annotation = {
+        task: taskId,
+        result: [
+          {
+            from_name: 'survey_choice',
+            to_name: 'survey_text',
+            type: 'choices',
+            value: {
+              choices: [value]
+            }
+          }
+        ]
+      };
+    } else if (projectType === 'GEOSPATIAL_LABELING') {
+      annotation = {
+        task: taskId,
+        result: [
+          {
+            from_name: 'geo_feature',
+            to_name: 'geo_image',
             type: 'choices',
             value: {
               choices: [value]

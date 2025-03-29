@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, StatusBar, TouchableOpacity, Text } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import TaskScreen from '../../screens/TaskScreen';
+import RevampedTaskScreen from '../../screens/RevampedTaskScreen';
 
 export default function LabelStudioScreen() {
   const router = useRouter();
@@ -32,8 +32,8 @@ export default function LabelStudioScreen() {
         }}
       />
       
-      {/* Render our Label Studio TaskScreen component */}
-      <TaskScreen />
+      {/* Render our Label Studio RevampedTaskScreen component */}
+      <RevampedTaskScreen />
     </View>
   );
 }

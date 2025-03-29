@@ -18,6 +18,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchTasks, submitAnnotation } from '../services/LabelStudioService';
 
 const { width, height } = Dimensions.get('window');
@@ -41,6 +42,7 @@ const TaskScreen = () => {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [taskType, setTaskType] = useState(TASK_TYPES.TEXT_SENTIMENT);
+  const [completedTasks, setCompletedTasks] = useState({});
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -65,9 +67,20 @@ const TaskScreen = () => {
       if (!tasksData || tasksData.length === 0) {
         setError(`No ${taskType === TASK_TYPES.TEXT_SENTIMENT ? 'text sentiment' : 'image classification'} tasks available`);
       } else {
-        setTasks(tasksData);
-        setCurrentIndex(0); // Reset to first task
+        // Mark tasks as completed if they're in our completedTasks object
+        const tasksWithCompletionStatus = tasksData.map(task => ({
+          ...task,
+          completed: completedTasks[`${taskType}_${task.id}`] || false
+        }));
+        
+        setTasks(tasksWithCompletionStatus);
+        
+        // Find the first incomplete task to start with
+        const firstIncompleteIndex = tasksWithCompletionStatus.findIndex(task => !task.completed);
+        setCurrentIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
+        
         console.log(`TaskScreen: ${tasksData.length} ${taskType} tasks loaded successfully`);
+        console.log(`TaskScreen: ${tasksWithCompletionStatus.filter(t => t.completed).length} tasks already completed`);
       }
     } catch (err) {
       console.error(`TaskScreen: Error loading ${taskType} tasks - ${err.message}`);
@@ -78,6 +91,23 @@ const TaskScreen = () => {
   }, []);
 
   // Load tasks on component mount and when task type changes
+  // Load completed tasks from AsyncStorage on mount
+  useEffect(() => {
+    const loadCompletedTasks = async () => {
+      try {
+        const savedCompletedTasks = await AsyncStorage.getItem('COMPLETED_TASKS');
+        if (savedCompletedTasks) {
+          setCompletedTasks(JSON.parse(savedCompletedTasks));
+          console.log('TaskScreen: Loaded completed tasks from storage');
+        }
+      } catch (error) {
+        console.error('TaskScreen: Error loading completed tasks', error);
+      }
+    };
+    
+    loadCompletedTasks();
+  }, []);
+
   useEffect(() => {
     loadTasks();
   }, [loadTasks, taskType]);
@@ -187,6 +217,33 @@ const TaskScreen = () => {
     );
   };
   
+  // Save completed tasks to AsyncStorage
+  const saveCompletedTasks = async (updatedCompletedTasks) => {
+    try {
+      await AsyncStorage.setItem('COMPLETED_TASKS', JSON.stringify(updatedCompletedTasks));
+      console.log('TaskScreen: Saved completed tasks to storage');
+    } catch (error) {
+      console.error('TaskScreen: Error saving completed tasks', error);
+    }
+  };
+
+  // Mark task as completed
+  const markTaskAsCompleted = (taskId) => {
+    const taskKey = `${taskType}_${taskId}`;
+    const updatedCompletedTasks = { ...completedTasks, [taskKey]: true };
+    setCompletedTasks(updatedCompletedTasks);
+    saveCompletedTasks(updatedCompletedTasks);
+    
+    // Also update the tasks array to reflect completion
+    setTasks(currentTasks => 
+      currentTasks.map(task => 
+        task.id === taskId 
+          ? { ...task, completed: true }
+          : task
+      )
+    );
+  };
+
   // Handle submit annotation
   const handleSubmit = async () => {
     const currentTask = tasks[currentIndex];
@@ -201,9 +258,19 @@ const TaskScreen = () => {
       try {
         await submitAnnotation(currentTask.id, currentTask.selectedSentiment, TASK_TYPES.TEXT_SENTIMENT);
         Alert.alert('Success', 'Sentiment annotation submitted successfully');
-        // Move to next task after successful submission
-        if (currentIndex < tasks.length - 1) {
-          goToNextTask();
+        
+        // Mark task as completed
+        markTaskAsCompleted(currentTask.id);
+        
+        // Move to next incomplete task after successful submission
+        const nextIncompleteIndex = tasks.findIndex((task, index) => 
+          index > currentIndex && !task.completed
+        );
+        
+        if (nextIncompleteIndex >= 0) {
+          setCurrentIndex(nextIncompleteIndex);
+        } else if (currentIndex < tasks.length - 1) {
+          goToNextTask(); // Just go to next task if no incomplete tasks found
         } else {
           Alert.alert('Complete', 'You have completed all text sentiment tasks!');
         }
@@ -222,9 +289,19 @@ const TaskScreen = () => {
       try {
         await submitAnnotation(currentTask.id, currentTask.selectedAnimal, TASK_TYPES.IMAGE_CLASSIFICATION);
         Alert.alert('Success', 'Image classification submitted successfully');
-        // Move to next task after successful submission
-        if (currentIndex < tasks.length - 1) {
-          goToNextTask();
+        
+        // Mark task as completed
+        markTaskAsCompleted(currentTask.id);
+        
+        // Move to next incomplete task after successful submission
+        const nextIncompleteIndex = tasks.findIndex((task, index) => 
+          index > currentIndex && !task.completed
+        );
+        
+        if (nextIncompleteIndex >= 0) {
+          setCurrentIndex(nextIncompleteIndex);
+        } else if (currentIndex < tasks.length - 1) {
+          goToNextTask(); // Just go to next task if no incomplete tasks found
         } else {
           Alert.alert('Complete', 'You have completed all image classification tasks!');
         }
@@ -251,7 +328,12 @@ const TaskScreen = () => {
       >
         <View style={styles.taskHeader}>
           <Text style={styles.taskId}>Task #{item.id}</Text>
-          <Text style={styles.taskProgress}>{currentIndex + 1} of {tasks.length}</Text>
+          <View style={styles.taskStatusContainer}>
+            {item.completed && (
+              <Text style={styles.completedBadge}>✓ Completed</Text>
+            )}
+            <Text style={styles.taskProgress}>{currentIndex + 1} of {tasks.length}</Text>
+          </View>
         </View>
         
         {taskType === TASK_TYPES.TEXT_SENTIMENT ? (
