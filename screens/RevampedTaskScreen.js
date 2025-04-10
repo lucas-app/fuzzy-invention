@@ -25,7 +25,7 @@ try {
   console.log('Error importing Audio:', error);
 }
 import { mockTasks } from '../assets/mock_tasks';
-import { submitAnnotation } from '../services/LabelStudioService';
+import { submitAnnotation, API_URL } from '../services/LabelStudioService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -314,7 +314,18 @@ const RevampedTaskScreen = () => {
           {currentTask.type === 'audio_classification' && (
             <TouchableOpacity
               style={[styles.playButton, isPlaying && styles.playingButton]}
-              onPress={() => playAudio(currentTask.media)}
+              onPress={() => {
+                const audioPath = currentTask.media; // Use .media
+                if (!audioPath) {
+                  console.error('Error: No audio path found in task data');
+                  Alert.alert('Error', 'Could not find audio for this task.');
+                  return;
+                }
+                // Prepend API_URL only if it's a relative path
+                const audioUrl = audioPath.startsWith('/') ? `${API_URL}${audioPath}` : audioPath;
+                console.log(`Attempting to play audio from: ${audioUrl}`);
+                playAudio(audioUrl);
+              }}
               disabled={isPlaying}
             >
               <Text style={styles.playButtonText}>

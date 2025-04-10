@@ -4,179 +4,167 @@ import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
-import { TASKS, WEB3_TASKS } from '../../../data/tasks';
+import { WEB3_TASKS } from '../../../data/tasks';
 import { useTaskStore } from '../../../store/taskStore';
 
-const TASK_SECTIONS = [
+// Task types that connect to Label Studio API
+type TaskType = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  projectType: string;
+  reward: string;
+  tasks?: any[];
+};
+
+const TASK_TYPES: TaskType[] = [
   {
     id: 'image',
     title: 'Image Classification',
     description: 'Help train AI models by classifying images',
-    tasks: TASKS.image,
-    icon: 'image',
+    icon: 'image' as const,
+    color: '#3b82f6',
+    projectType: 'IMAGE_CLASSIFICATION',
+    reward: '5-15 LUCAS',
   },
   {
     id: 'text',
-    title: 'Sentiment Analysis',
+    title: 'Text Analysis',
     description: 'Analyze text sentiment to improve services',
-    tasks: TASKS.text,
-    icon: 'document-text',
+    icon: 'document-text' as const,
+    color: '#10b981',
+    projectType: 'TEXT_SENTIMENT',
+    reward: '3-10 LUCAS',
   },
   {
-    id: 'object',
-    title: 'Object Detection',
-    description: 'Help train AI by marking objects in images',
-    tasks: TASKS.object,
-    icon: 'scan',
+    id: 'audio',
+    title: 'Audio Classification',
+    description: 'Classify sounds and audio recordings',
+    icon: 'musical-notes' as const,
+    color: '#f59e0b',
+    projectType: 'AUDIO_CLASSIFICATION',
+    reward: '5-12 LUCAS',
   },
   {
-    id: 'ailabel',
-    title: 'AI Label',
-    description: 'Advanced AI labeling tasks from Label Studio',
-    tasks: [
-      {
-        id: 'labelstudio',
-        title: 'Label Studio Tasks',
-        description: 'View and manage Label Studio tasks',
-        reward: '5-15 LUCAS',
-        time: '10-30 min',
-        difficulty: 'Medium',
-        type: 'AI',
-      }
-    ],
-    icon: 'code-working',
+    id: 'survey',
+    title: 'Survey Tasks',
+    description: 'Answer questions and provide feedback',
+    icon: 'clipboard' as const,
+    color: '#8b5cf6',
+    projectType: 'SURVEY',
+    reward: '2-8 LUCAS',
+  },
+  {
+    id: 'geospatial',
+    title: 'Geospatial Labeling',
+    description: 'Identify features in satellite imagery',
+    icon: 'globe' as const,
+    color: '#ec4899',
+    projectType: 'GEOSPATIAL_LABELING',
+    reward: '6-18 LUCAS',
   },
   {
     id: 'web3',
     title: 'Web3 Tasks',
     description: 'Participate in blockchain and crypto tasks',
+    icon: 'logo-bitcoin' as const,
+    color: '#6366f1',
+    projectType: 'WEB3',
+    reward: '10-30 LUCAS',
     tasks: Object.values(WEB3_TASKS),
-    icon: 'globe',
   },
 ];
 
-function TaskCard({ task, index, completedTasks }: { 
-  task: any; 
+function TaskTypeCard({ taskType, index }: { 
+  taskType: TaskType; 
   index: number;
-  completedTasks: string[];
 }) {
-  const isCompleted = completedTasks.includes(task.id);
-
   const handlePress = () => {
-    if (!isCompleted) {
-      if (task.id === 'labelstudio') {
-        // Navigate to our Label Studio integration screen
-        router.push('/labelstudio');
-      } else {
-        router.push(`/tasks/${task.id}`);
-      }
+    if (taskType.id === 'web3') {
+      // For Web3 tasks, use the existing navigation
+      router.push(`/tasks/${taskType.id}`);
+    } else {
+      // For Label Studio tasks, navigate to the task screen with the project type
+      router.push({
+        pathname: '/labelstudio',
+        params: { projectType: taskType.projectType }
+      });
     }
   };
-
-  const getTaskIcon = () => {
-    if (task.type === 'image') return 'image';
-    if (task.type === 'text') return 'text';
-    if (task.type === 'object') return 'scan';
-    if (task.id === 'airdrop') return 'gift';
-    if (task.id === 'community') return 'people';
-    return 'checkmark-circle';
+  
+  const handleFixGeospatial = (e: any) => {
+    e.stopPropagation();
+    router.push({
+      pathname: '/labelstudio',
+      params: { projectType: 'FIX_GEOSPATIAL' }
+    });
   };
-
-  const isWeb3Task = !task.type;
 
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 100).springify()}
       layout={Layout.springify()}
-      style={[
-        styles.taskCardContainer,
-        isCompleted && styles.taskCardCompleted
-      ]}
+      style={styles.taskTypeCardContainer}
     >
       <Pressable
-        style={styles.taskCard}
+        style={styles.taskTypeCard}
         onPress={handlePress}
-        disabled={isCompleted}
         android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
       >
         <LinearGradient
-          colors={['rgba(34,211,238,0.1)', 'rgba(45,212,191,0.1)']}
+          colors={[`${taskType.color}15`, `${taskType.color}10`]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         
-        <View style={styles.taskHeader}>
-          <View style={[
-            styles.taskIcon,
-            isWeb3Task && styles.web3TaskIcon,
-            isCompleted && styles.taskIconCompleted
-          ]}>
-            <Ionicons 
-              name={isCompleted ? 'checkmark' : getTaskIcon()} 
-              size={24} 
-              color={isCompleted ? '#10b981' : (isWeb3Task ? '#9333ea' : '#2563eb')} 
-            />
-          </View>
-          
-          <View style={styles.taskMeta}>
-            <View style={[
-              styles.availabilityBadge,
-              isCompleted && styles.completedBadge
-            ]}>
-              <Text style={[
-                styles.availabilityText,
-                isCompleted && styles.completedText
-              ]}>
-                {isCompleted ? 'Completed' : 'New Task'}
-              </Text>
-            </View>
-            <Text style={[
-              styles.reward,
-              isWeb3Task && styles.web3Reward,
-              isCompleted && styles.completedReward
-            ]}>
-              ${typeof task.reward === 'string' ? task.reward : task.reward.toFixed(2)} <Text style={styles.rewardUnit}>USDC</Text>
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.taskContent}>
-          <Text style={[
-            styles.taskTitle,
-            isCompleted && styles.completedText
-          ]}>{task.title}</Text>
-          <Text style={[
-            styles.taskDescription,
-            isCompleted && styles.completedDescription
-          ]}>
-            {task.description || (task.type === 'image' ? 'Help train our AI by classifying this image' : 'Help improve our text analysis models')}
-          </Text>
-        </View>
-
-        <View style={[
-          styles.taskFooter,
-          isWeb3Task && styles.web3TaskFooter,
-          isCompleted && styles.completedFooter
-        ]}>
-          <Text style={[
-            styles.startTask,
-            isWeb3Task && styles.web3StartTask,
-            isCompleted && styles.completedStartTask
-          ]}>{isCompleted ? 'Task Completed' : 'Start Task'}</Text>
+        <View style={[styles.taskTypeIconContainer, { backgroundColor: `${taskType.color}15` }]}>
           <Ionicons 
-            name={isCompleted ? 'checkmark-circle' : 'arrow-forward'}
-            size={20} 
-            color={isCompleted ? '#10b981' : (isWeb3Task ? '#9333ea' : '#2563eb')} 
+            name={taskType.icon as any} 
+            size={32} 
+            color={taskType.color} 
           />
+        </View>
+        
+        <Text style={styles.taskTypeTitle}>{taskType.title}</Text>
+        
+        <Text style={styles.taskTypeDescription} numberOfLines={2}>
+          {taskType.description}
+        </Text>
+        
+        <View style={styles.taskTypeFooter}>
+          <Text style={[styles.taskTypeReward, { color: taskType.color }]}>
+            {taskType.reward}
+          </Text>
+          
+          {taskType.id === 'geospatial' ? (
+            <View style={styles.buttonGroup}>
+              <Pressable 
+                onPress={handleFixGeospatial}
+                style={[styles.fixButton, { backgroundColor: '#ef4444' }]}
+              >
+                <Text style={styles.fixButtonText}>Fix</Text>
+              </Pressable>
+              <View style={[styles.startButton, { backgroundColor: `${taskType.color}15` }]}>
+                <Text style={[styles.startButtonText, { color: taskType.color }]}>Start</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.startButton, { backgroundColor: `${taskType.color}15` }]}>
+              <Text style={[styles.startButtonText, { color: taskType.color }]}>Start</Text>
+            </View>
+          )}
         </View>
       </Pressable>
     </Animated.View>
   );
 }
 
-function TaskSection({ section, isExpanded, onToggle, completedTasks }: { 
-  section: typeof TASK_SECTIONS[0];
+// This component is no longer used with the new grid layout
+/* function TaskSection({ section, isExpanded, onToggle, completedTasks }: { 
+  section: any;
   isExpanded: boolean;
   onToggle: () => void;
   completedTasks: string[];
@@ -231,13 +219,12 @@ function TaskSection({ section, isExpanded, onToggle, completedTasks }: {
     </Animated.View>
   );
 }
+*/
 
 export default function TasksScreen() {
-  const [expandedSections, setExpandedSections] = useState<string[]>(['image']);
   const { completedTasks, fetchUserStats } = useTaskStore();
   const [isLoading, setIsLoading] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
-  const web3SectionRef = useRef<View>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -253,34 +240,6 @@ export default function TasksScreen() {
     loadData();
   }, []);
 
-  const toggleSection = useCallback((sectionId: string) => {
-    setExpandedSections(prev => 
-      prev.includes(sectionId)
-        ? prev.filter(id => id !== sectionId)
-        : [...prev, sectionId]
-    );
-  }, []);
-
-  const scrollToWeb3Section = useCallback(() => {
-    // First ensure the web3 section is expanded
-    if (!expandedSections.includes('web3')) {
-      setExpandedSections(prev => [...prev, 'web3']);
-    }
-    
-    // Use a timeout to ensure the section is rendered before scrolling
-    setTimeout(() => {
-      if (web3SectionRef.current && scrollViewRef.current) {
-        web3SectionRef.current.measureLayout(
-          scrollViewRef.current as any,
-          (_, y) => {
-            scrollViewRef.current?.scrollTo({ y, animated: true });
-          },
-          () => console.error('Failed to measure layout')
-        );
-      }
-    }, 100);
-  }, [expandedSections]);
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -292,327 +251,236 @@ export default function TasksScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#020733', '#041454']}
+        colors={['#0f172a', '#1e293b']}
         style={styles.headerGradient}
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image 
-              source={{ uri: 'https://i.ibb.co/Rk8yV57s/LUCAS-transparente.png' }} 
-              style={styles.logo}
-              resizeMode="contain"
+            <Ionicons
+              name="layers-outline"
+              size={32}
+              color="#ffffff"
             />
           </View>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>   Task Marketplace</Text>
-            <Text style={styles.subtitle}>     Complete tasks, Earn, Invest
-            </Text>
+            <Text style={styles.title}>LUCAS Tasks</Text>
+            <Text style={styles.subtitle}>Earn rewards by completing tasks</Text>
+          </View>
+        </View>
+        
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statLabel}>Available</Text>
+          </View>
+          
+          <View style={styles.statDivider} />
+          
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{completedTasks.length}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
+          
+          <View style={styles.statDivider} />
+          
+          <View style={styles.statItem}>
+            <View style={styles.hotTaskBadge}>
+              <Text style={styles.hotTaskText}>HOT</Text>
+            </View>
+            <Text style={styles.statLabel}>New Tasks</Text>
           </View>
         </View>
       </LinearGradient>
 
-      <View style={styles.statsBar}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{completedTasks.length}</Text>
-          <Text style={styles.statLabel}>Completed</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{TASK_SECTIONS.reduce((sum, section) => sum + section.tasks.length, 0)}</Text>
-          <Text style={styles.statLabel}>Available</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <Pressable 
-          style={styles.statItem}
-          onPress={scrollToWeb3Section}
-          android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
-        >
-          <View style={styles.hotTaskBadge}>
-            <Text style={styles.hotTaskText}>HOT</Text>
+      <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.taskGrid}>
+            {TASK_TYPES.map((taskType, index) => (
+              <TaskTypeCard 
+                key={taskType.id}
+                taskType={taskType}
+                index={index}
+              />
+            ))}
           </View>
-          <Text style={styles.statLabel}>Web3 Tasks</Text>
-        </Pressable>
+          <View style={styles.bottomPadding} />
+        </ScrollView>
       </View>
-
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {TASK_SECTIONS.map((section) => (
-          <View 
-            key={section.id}
-            ref={section.id === 'web3' ? web3SectionRef : undefined}
-          >
-            <TaskSection
-              section={section}
-              isExpanded={expandedSections.includes(section.id)}
-              onToggle={() => toggleSection(section.id)}
-              completedTasks={completedTasks}
-            />
-          </View>
-        ))}
-        <View style={styles.bottomPadding} />
-      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  taskTypeCardContainer: {
+    width: '48%',
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  taskTypeCard: {
+    padding: 16,
+    height: 200,
+    justifyContent: 'space-between',
+  },
+  taskTypeIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  taskTypeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  taskTypeDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    marginBottom: 12,
+    flexGrow: 1,
+  },
+  taskTypeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  taskTypeReward: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  startButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  startButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fixButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  fixButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  taskGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingTop: 60,
     paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   logoContainer: {
     width: 48,
-    height: 59,
-    borderRadius: 8,
-    backgroundColor: '',
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-    overflow: 'hidden',
+    marginRight: 12,
   },
   logo: {
-    width: 110,
-    height: 110,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   headerTextContainer: {
     flex: 1,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.8)',
-    lineHeight: 20,
+    marginTop: 2,
   },
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    marginHorizontal: 16,
   },
   statItem: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   statValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#020733',
-    marginBottom: 2,
+    fontWeight: '700',
+    color: '#fff',
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
   statDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: '#e2e8f0',
-    marginHorizontal: 16,
+    height: '80%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   hotTaskBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    borderRadius: 12,
     backgroundColor: '#ef4444',
-    borderRadius: 4,
     marginBottom: 4,
   },
   hotTaskText: {
-    color: '#fff',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#fff',
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 12,
+    padding: 16,
+    paddingBottom: 32,
   },
   bottomPadding: {
-    height: Platform.OS === 'ios' ? 120 : 100,
-  },
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: expandedSections => expandedSections.length > 0 ? 1 : 0,
-    borderBottomColor: '#e2e8f0',
-  },
-  sectionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(37,99,235,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  sectionTitleContainer: {
-    flex: 1,
-    marginRight: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#020733',
-    marginBottom: 2,
-  },
-  sectionDescription: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  sectionContent: {
-    padding: 12,
-  },
-  taskCardContainer: {
-    marginBottom: 12,
-  },
-  taskCardCompleted: {
-    opacity: 0.7,
-  },
-  taskCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  taskIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(37,99,235,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  taskIconCompleted: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-  },
-  web3TaskIcon: {
-    backgroundColor: 'rgba(147,51,234,0.1)',
-  },
-  taskMeta: {
-    alignItems: 'flex-end',
-  },
-  availabilityBadge: {
-    backgroundColor: 'rgba(34,197,94,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  completedBadge: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-  },
-  availabilityText: {
-    fontSize: 12,
-    color: '#16a34a',
-    fontWeight: '600',
-  },
-  completedText: {
-    color: '#10b981',
-  },
-  reward: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2563eb',
-  },
-  completedReward: {
-    color: '#10b981',
-  },
-  web3Reward: {
-    color: '#9333ea',
-  },
-  rewardUnit: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#64748b',
-  },
-  taskContent: {
-    padding: 16,
-  },
-  taskTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#020733',
-    marginBottom: 6,
-  },
-  taskDescription: {
-    fontSize: 14,
-    color: '#64748b',
-    lineHeight: 20,
-  },
-  completedDescription: {
-    color: '#94a3b8',
-  },
-  taskFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(37,99,235,0.05)',
-  },
-  completedFooter: {
-    backgroundColor: 'rgba(16,185,129,0.05)',
-  },
-  web3TaskFooter: {
-    backgroundColor: 'rgba(147,51,234,0.05)',
-  },
-  startTask: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2563eb',
-  },
-  completedStartTask: {
-    color: '#10b981',
-  },
-  web3StartTask: {
-    color: '#9333ea',
+    height: 100,
   },
 });
