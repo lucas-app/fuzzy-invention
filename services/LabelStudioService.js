@@ -13,11 +13,11 @@ const getApiToken = () => '501c980772e98d56cab53109683af59c36ce5778';
 
 // Project IDs
 const PROJECTS = {
-  TEXT_SENTIMENT: 1,       // Text sentiment project
-  IMAGE_CLASSIFICATION: 2, // Image classification project
-  AUDIO_CLASSIFICATION: 3, // Audio classification project
-  SURVEY: 4,               // Survey project
-  GEOSPATIAL_LABELING: 5,  // Geospatial labeling project
+  TEXT_SENTIMENT: 3,       // Text sentiment project
+  IMAGE_CLASSIFICATION: 4, // Image classification project
+  AUDIO_CLASSIFICATION: 5, // Audio classification project
+  SURVEY: 6,               // Survey project
+  GEOSPATIAL_LABELING: 7,  // Geospatial labeling project
 };
 
 // Storage keys
@@ -41,12 +41,90 @@ const TIMEOUT_MS = 5000; // 5 seconds timeout
  * @param {number} retries - Number of retry attempts
  * @returns {Promise<Array>} Array of tasks
  */
+/**
+ * Update geospatial tasks in Label Studio with working image URLs
+ * @returns {Promise<boolean>} Success status
+ */
+export const updateGeospatialTasks = async () => {
+  const API_TOKEN = getApiToken();
+  const projectId = PROJECTS.GEOSPATIAL_LABELING;
+  const TASKS_ENDPOINT = getTasksEndpoint(projectId);
+  
+  try {
+    console.log('LabelStudioService: Updating geospatial tasks with working image URLs...');
+    
+    // Working image URLs from imgur
+    const workingImageUrls = [
+      { id: 28, image: 'https://i.imgur.com/pMZcCuH.jpg', location_name: 'Agricultural Land' },
+      { id: 29, image: 'https://i.imgur.com/8kcsS6G.jpg', location_name: 'Mountain Region' },
+      { id: 30, image: 'https://i.imgur.com/qYYEcnE.jpg', location_name: 'Desert Region' }
+    ];
+    
+    // Update each task
+    for (const task of workingImageUrls) {
+      const response = await fetch(`${API_URL}/api/tasks/${task.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Token ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            image: task.image,
+            location_name: task.location_name,
+            question: 'What is the most prominent feature in this map?',
+            options: [
+              { id: 'building', text: 'Buildings', value: 'building' },
+              { id: 'road', text: 'Roads', value: 'road' },
+              { id: 'water', text: 'Water', value: 'water' },
+              { id: 'vegetation', text: 'Vegetation', value: 'vegetation' }
+            ]
+          }
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`LabelStudioService: Error updating task ${task.id}: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+      
+      console.log(`LabelStudioService: Successfully updated task ${task.id} with working image URL`);
+    }
+    
+    console.log('LabelStudioService: All geospatial tasks updated successfully');
+    return true;
+  } catch (error) {
+    console.error(`LabelStudioService: Error updating geospatial tasks - ${error.message}`);
+    return false;
+  }
+};
+
 export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) => {
   const projectId = PROJECTS[projectType];
   const TASKS_ENDPOINT = getTasksEndpoint(projectId);
   const STORAGE_KEY = STORAGE_KEYS[projectType];
   
   console.log(`LabelStudioService: Fetching ${projectType} tasks from API...`);
+  
+  // For SURVEY project type, use the local tasks.json file directly
+  if (projectType === 'SURVEY') {
+    try {
+      console.log('LabelStudioService: Using local survey tasks from tasks.json');
+      const surveyTasks = tasksJson.filter(task => task.id >= 100 && task.id < 200);
+      
+      if (surveyTasks && surveyTasks.length > 0) {
+        console.log(`LabelStudioService: Found ${surveyTasks.length} survey tasks`);
+        return surveyTasks;
+      } else {
+        console.log('LabelStudioService: No survey tasks found in tasks.json');
+        return [];
+      }
+    } catch (error) {
+      console.error(`LabelStudioService: Error loading survey tasks - ${error.message}`);
+      return [];
+    }
+  }
   console.log(`LabelStudioService: API URL: ${API_URL}${TASKS_ENDPOINT}`);
   console.log(`LabelStudioService: Project ID: ${projectId}`);
   const API_TOKEN = getApiToken(); // Get fresh token each time
@@ -96,16 +174,24 @@ export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) =>
         id: task.id,
         created_at: task.created_at,
         data: {
+          // Include all possible data fields based on project type
           link: task.data?.link,
           str: task.data?.str,
           text: task.data?.text,
           title: task.data?.title,
-          image: task.data?.image, // Add image field for image classification tasks
+          image: task.data?.image,
+          audio: task.data?.audio,
+          question: task.data?.question,
+          description: task.data?.description,
+          // For geospatial labeling, use map_image if available, otherwise use image
+          map_image: task.data?.map_image || (projectType === 'GEOSPATIAL_LABELING' ? task.data?.image : undefined),
+          location_name: task.data?.location_name,
+          options: task.data?.options
         },
       }));
 
-      // Save to AsyncStorage
-      await saveTasks(slimTasks);
+      // Save to AsyncStorage with the correct project type
+      await saveTasks(slimTasks, projectType);
 
       return tasksArray;
     } catch (error) {
@@ -149,8 +235,16 @@ export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) =>
 export const saveTasks = async (tasks, projectType = 'TEXT_SENTIMENT') => {
   try {
     const STORAGE_KEY = STORAGE_KEYS[projectType];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    console.log(`LabelStudioService: Saved ${tasks.length} ${projectType} tasks to AsyncStorage`);
+    
+    // Optimize for storage by keeping only essential fields
+    const reducedTasks = tasks.map(task => ({
+      id: task.id,
+      data: task.data || {},
+      created_at: task.created_at,
+    }));
+    
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reducedTasks));
+    console.log(`LabelStudioService: Saved ${reducedTasks.length} ${projectType} tasks to AsyncStorage`);
   } catch (error) {
     console.error(`LabelStudioService: Error saving tasks - ${error.message}`);
     // If storage error occurs, try with fewer items
@@ -165,6 +259,8 @@ export const saveTasks = async (tasks, projectType = 'TEXT_SENTIMENT') => {
       } catch (retryError) {
         console.error(`LabelStudioService: Retry failed - ${retryError.message}`);
       }
+    } else {
+      throw error;
     }
   }
 };
@@ -245,19 +341,30 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
         ]
       };
     } else if (projectType === 'SURVEY') {
+      // For surveys, the value parameter is expected to be the complete annotation object
+      // with all questions and responses already formatted
       annotation = {
         task: taskId,
-        result: [
-          {
-            from_name: 'survey_choice',
-            to_name: 'survey_text',
-            type: 'choices',
-            value: {
-              choices: [value]
-            }
-          }
-        ]
+        result: value.result || []
       };
+      
+      // If the value doesn't have the expected format, create a fallback
+      if (!value.result) {
+        console.warn('LabelStudioService: Survey annotation format is incorrect, using fallback');
+        annotation = {
+          task: taskId,
+          result: [
+            {
+              from_name: 'survey_choice',
+              to_name: 'survey_text',
+              type: 'choices',
+              value: {
+                choices: [typeof value === 'string' ? value : 'completed']
+              }
+            }
+          ]
+        };
+      }
     } else if (projectType === 'GEOSPATIAL_LABELING') {
       annotation = {
         task: taskId,

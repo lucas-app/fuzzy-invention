@@ -1,4 +1,268 @@
 [
-  { "id": 1, "data": { "text": "Sample task 1" } },
-  { "id": 2, "data": { "text": "Sample task 2" } }
+  { "id": 1, "data": { "text": "Sample text sentiment task" } },
+  { "id": 2, "data": { "text": "Sample text sentiment task 2" } },
+  {
+    "id": 100,
+    "data": {
+      "title": "Land Use Survey",
+      "description": "This survey helps us understand how land is being used in different regions. Your feedback is valuable for environmental monitoring and land management.",
+      "questions": [
+        {
+          "id": "land_type",
+          "type": "multiple_choice",
+          "question": "What is the primary land use type in the area you're observing?",
+          "required": true,
+          "options": [
+            { "id": "agricultural", "text": "Agricultural", "value": "agricultural" },
+            { "id": "forest", "text": "Forest/Woodland", "value": "forest" },
+            { "id": "urban", "text": "Urban/Built-up", "value": "urban" },
+            { "id": "grassland", "text": "Grassland", "value": "grassland" },
+            { "id": "wetland", "text": "Wetland", "value": "wetland" },
+            { "id": "barren", "text": "Barren Land", "value": "barren" },
+            { "id": "water", "text": "Water Body", "value": "water" }
+          ]
+        },
+        {
+          "id": "vegetation_density",
+          "type": "slider",
+          "question": "How would you rate the vegetation density in this area?",
+          "min": 0,
+          "max": 10,
+          "step": 1
+        },
+        {
+          "id": "human_impact",
+          "type": "rating",
+          "question": "Rate the level of human impact on this landscape"
+        },
+        {
+          "id": "erosion_present",
+          "type": "boolean",
+          "question": "Is there visible soil erosion in this area?"
+        },
+        {
+          "id": "additional_notes",
+          "type": "text",
+          "question": "Please provide any additional observations about this area"
+        }
+      ]
+    }
+  },
+  {
+    "id": 101,
+    "data": {
+      "title": "User Experience Feedback",
+      "description": "Help us improve the LUCAS app by sharing your experience. Your feedback will directly influence future updates.",
+      "questions": [
+        {
+          "id": "app_usability",
+          "type": "rating",
+          "question": "How would you rate the overall usability of the app?",
+          "required": true
+        },
+        {
+          "id": "interface_intuitive",
+          "type": "multiple_choice",
+          "question": "The user interface is intuitive and easy to use.",
+          "options": [
+            { "id": "strongly_agree", "text": "Strongly Agree", "value": "strongly_agree" },
+            { "id": "agree", "text": "Agree", "value": "agree" },
+            { "id": "neutral", "text": "Neutral", "value": "neutral" },
+            { "id": "disagree", "text": "Disagree", "value": "disagree" },
+            { "id": "strongly_disagree", "text": "Strongly Disagree", "value": "strongly_disagree" }
+          ]
+        },
+        {
+          "id": "task_completion_ease",
+          "type": "slider",
+          "question": "How easy was it to complete tasks in the app?",
+          "min": 1,
+          "max": 10,
+          "step": 1
+        },
+        {
+          "id": "offline_mode",
+          "type": "boolean",
+          "question": "Did you use the app in offline mode?"
+        },
+        {
+          "id": "improvement_suggestions",
+          "type": "text",
+          "question": "What features would you like to see improved or added?"
+        }
+      ]
+    }
+  },
+  {
+    "id": 102,
+    "data": {
+      "title": "Environmental Assessment",
+      "description": "This survey helps collect data about environmental conditions in your area. The information will be used for ecological monitoring and conservation planning.",
+      "questions": [
+        {
+          "id": "weather_conditions",
+          "type": "multiple_choice",
+          "question": "What are the current weather conditions?",
+          "required": true,
+          "options": [
+            { "id": "sunny", "text": "Sunny/Clear", "value": "sunny" },
+            { "id": "partly_cloudy", "text": "Partly Cloudy", "value": "partly_cloudy" },
+            { "id": "cloudy", "text": "Overcast/Cloudy", "value": "cloudy" },
+            { "id": "rainy", "text": "Rainy", "value": "rainy" },
+            { "id": "foggy", "text": "Foggy", "value": "foggy" },
+            { "id": "snowy", "text": "Snowy", "value": "snowy" }
+          ]
+        },
+        {
+          "id": "wildlife_presence",
+          "type": "boolean",
+          "question": "Did you observe any wildlife in the area?"
+        },
+        {
+          "id": "pollution_level",
+          "type": "slider",
+          "question": "Rate the visible pollution level in this area",
+          "min": 0,
+          "max": 10,
+          "step": 1
+        },
+        {
+          "id": "biodiversity_rating",
+          "type": "rating",
+          "question": "How would you rate the biodiversity in this area?"
+        },
+        {
+          "id": "environmental_concerns",
+          "type": "text",
+          "question": "Describe any environmental concerns or notable observations"
+        }
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "data": {
+      "image": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba",
+      "question": "What animal is shown in this image?",
+      "options": [
+        { "id": "cat", "text": "Cat", "value": "cat" },
+        { "id": "dog", "text": "Dog", "value": "dog" },
+        { "id": "bird", "text": "Bird", "value": "bird" },
+        { "id": "rabbit", "text": "Rabbit", "value": "rabbit" },
+        { "id": "hamster", "text": "Hamster", "value": "hamster" },
+        { "id": "other", "text": "Other", "value": "other" }
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "data": {
+      "image": "https://images.unsplash.com/photo-1507146426996-ef05306b995a",
+      "question": "What animal is shown in this image?",
+      "options": [
+        { "id": "cat", "text": "Cat", "value": "cat" },
+        { "id": "dog", "text": "Dog", "value": "dog" },
+        { "id": "bird", "text": "Bird", "value": "bird" },
+        { "id": "rabbit", "text": "Rabbit", "value": "rabbit" },
+        { "id": "hamster", "text": "Hamster", "value": "hamster" },
+        { "id": "other", "text": "Other", "value": "other" }
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "data": {
+      "audio": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "question": "What type of content is this?",
+      "options": [
+        { "id": "music", "text": "Music", "value": "music" },
+        { "id": "speech", "text": "Speech", "value": "speech" },
+        { "id": "sound_effect", "text": "Sound Effect", "value": "sound_effect" },
+        { "id": "other", "text": "Other", "value": "other" }
+      ]
+    }
+  },
+  {
+    "id": 6,
+    "data": {
+      "audio": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "question": "What do you hear in this audio?",
+      "options": [
+        { "id": "voices", "text": "Voices", "value": "voices" },
+        { "id": "music", "text": "Music", "value": "music" },
+        { "id": "both", "text": "Both voices and music", "value": "both" },
+        { "id": "other", "text": "Other sounds", "value": "other" }
+      ]
+    }
+  },
+  {
+    "id": 7,
+    "data": {
+      "map_image": "https://i.imgur.com/JWYEVtl.jpg",
+      "location_name": "Urban Area - Downtown",
+      "question": "What is the most prominent feature in this map?",
+      "options": [
+        { "id": "building", "text": "Buildings", "value": "building" },
+        { "id": "road", "text": "Roads", "value": "road" },
+        { "id": "water", "text": "Water", "value": "water" },
+        { "id": "vegetation", "text": "Vegetation", "value": "vegetation" }
+      ]
+    }
+  },
+  {
+    "id": 8,
+    "data": {
+      "map_image": "https://i.imgur.com/zU9XHA3.jpg",
+      "location_name": "Coastal Region",
+      "question": "What is the most prominent feature in this map?",
+      "options": [
+        { "id": "building", "text": "Buildings", "value": "building" },
+        { "id": "road", "text": "Roads", "value": "road" },
+        { "id": "water", "text": "Water", "value": "water" },
+        { "id": "vegetation", "text": "Vegetation", "value": "vegetation" }
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "data": {
+      "map_image": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1024&q=80",
+      "location_name": "Agricultural Land",
+      "question": "What is the most prominent feature in this map?",
+      "options": [
+        { "id": "building", "text": "Buildings", "value": "building" },
+        { "id": "road", "text": "Roads", "value": "road" },
+        { "id": "water", "text": "Water", "value": "water" },
+        { "id": "vegetation", "text": "Vegetation", "value": "vegetation" }
+      ]
+    }
+  },
+  {
+    "id": 29,
+    "data": {
+      "map_image": "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1024&q=80",
+      "location_name": "Mountain Region",
+      "question": "What is the most prominent feature in this map?",
+      "options": [
+        { "id": "building", "text": "Buildings", "value": "building" },
+        { "id": "road", "text": "Roads", "value": "road" },
+        { "id": "water", "text": "Water", "value": "water" },
+        { "id": "vegetation", "text": "Vegetation", "value": "vegetation" }
+      ]
+    }
+  },
+  {
+    "id": 30,
+    "data": {
+      "map_image": "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1024&q=80",
+      "location_name": "Desert Region",
+      "question": "What is the most prominent feature in this map?",
+      "options": [
+        { "id": "building", "text": "Buildings", "value": "building" },
+        { "id": "road", "text": "Roads", "value": "road" },
+        { "id": "water", "text": "Water", "value": "water" },
+        { "id": "vegetation", "text": "Vegetation", "value": "vegetation" }
+      ]
+    }
+  }
 ]
