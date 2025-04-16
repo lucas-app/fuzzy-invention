@@ -8,7 +8,7 @@ import {
   Dimensions,
   Alert
 } from 'react-native';
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import BaseTaskScreen from './BaseTaskScreen';
 
@@ -30,25 +30,29 @@ interface Option {
   value: string;
 }
 
-// We don't need a custom PlaybackStatus interface since we're using AVPlaybackStatus from expo-av
+// Audio playback methods will now work directly with remote URLs
 
 const { width } = Dimensions.get('window');
 
 const AudioClassificationScreen = () => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTaskId, setCurrentTaskId] = useState<number | null>(null);
-
-  // Clean up audio on unmount
+  const [sound, setSound] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  
+  // Clean up function when component unmounts
   useEffect(() => {
     return () => {
       if (sound) {
-        sound.unloadAsync();
+        try {
+          sound.unloadAsync();
+        } catch (e) {
+          console.log('Error unloading sound', e);
+        }
       }
     };
   }, [sound]);
-  
-  // Stop audio when task changes
+
+  // Simple stop audio function
   const stopAudio = async () => {
     if (sound) {
       try {
@@ -62,99 +66,57 @@ const AudioClassificationScreen = () => {
     }
   };
 
-  // Play audio for audio classification tasks
-  const playAudio = async (uri: string) => {
+  // Simplified play audio function for remote URLs
+  const playAudio = async (audioSource) => {
     try {
-      // First, ensure we have audio permissions
-      const permissionResponse = await Audio.requestPermissionsAsync();
-      if (!permissionResponse.granted) {
-        Alert.alert(
-          'Permission Required',
-          'Audio playback requires microphone permissions',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Set audio mode for playback
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-      });
-
-      // Unload any existing sound
+      // First stop any playing audio
       if (sound) {
+        await sound.stopAsync();
         await sound.unloadAsync();
+        setSound(null);
       }
       
-      // Show playing state immediately for better UX
       setIsPlaying(true);
+      console.log('Playing audio from URL:', audioSource);
       
-      console.log('Attempting to play audio from:', uri);
-      
-      // Create and play the sound
+      // We've removed local audio files in favor of remote MP4 filesURL
       const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true },
-        onPlaybackStatusUpdate
-      );
-      
-      setSound(newSound);
-      
-      // Explicitly play the sound
-      const playbackStatus = await newSound.playAsync();
-      console.log('Playback status:', playbackStatus);
-      
-    } catch (error) {
-      console.error('Error playing audio:', error);
-      setIsPlaying(false);
-      
-      // Show more detailed error message
-      let errorMessage = 'Unable to play this audio file. Please try again later.';
-      
-      // Check for specific error types
-      if (error instanceof Error) {
-        if (error.message.includes('NSURLErrorDomain')) {
-          errorMessage = 'Network error: The audio file could not be loaded. Please check your internet connection and try again.';
-        } else if (error.message.includes('AVFoundation')) {
-          errorMessage = 'Audio format error: This audio file format is not supported.';
+        { uri: audioSource },
+        { shouldPlay: true, volume: 1.0, isMuted: false, isLooping: false, rate: 1.0, shouldCorrectPitch: true, downloadAsync: true },
+        (status) => {
+          if (status.isLoaded) {
+            // When playback is complete
+            if (status.didJustFinish) {
+              setIsPlaying(false);
+            }
+          } else if (status.error) {
+            console.error('Playback error:', status.error);
+            setIsPlaying(false);
+          }
         }
-      }
-      
-      Alert.alert(
-        'Audio Error',
-        errorMessage,
-        [{ text: 'OK' }]
       );
-    }
-  };
-
-  // Monitor audio playback status
-  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (status.isLoaded && status.didJustFinish) {
+      
+      // Save reference to control playback
+      setSound(newSound);
+    } catch (error) {
+      console.error('Audio playback error:', error);
       setIsPlaying(false);
+      Alert.alert('Error', 'Could not play this audio file');
     }
   };
 
-  // Render audio task content
-  const renderTaskContent = (task: Task | null) => {
+  // Render the audio task content
+  const renderTaskContent = (task) => {
     if (!task) return null;
     
-    // If task ID has changed, stop any playing audio
+    // If task ID changed, stop any playing audio
     if (task.id !== currentTaskId) {
       stopAudio();
       setCurrentTaskId(task.id);
     }
     
-    // Extract question from task data or use default
     const question = task.data.question || 'What type of sound is this?';
-    
-    // Check if audio URL exists
     const audioUrl = task.data.audio;
-    if (!audioUrl) {
-      console.error('No audio URL provided for task:', task.id);
-    }
     
     return (
       <View style={styles.contentContainer}>
@@ -164,10 +126,10 @@ const AudioClassificationScreen = () => {
           <TouchableOpacity
             style={[styles.playButton, isPlaying && styles.playingButton]}
             onPress={() => audioUrl ? playAudio(audioUrl) : Alert.alert('Error', 'No audio available')}
-            disabled={isPlaying || !audioUrl}
+            disabled={isPlaying}
           >
             <Ionicons 
-              name={isPlaying ? "pause-circle" : "play-circle"} 
+              name={isPlaying ? "pause" : "play"} 
               size={36} 
               color="white" 
               style={styles.playIcon}
@@ -181,11 +143,11 @@ const AudioClassificationScreen = () => {
     );
   };
 
-  // Render audio classification options
-  const renderOptions = (task: Task | null, selectedOption: string, onSelect: (optionId: string) => void) => {
+  // Render options for audio classification
+  const renderOptions = (task, selectedOption, onSelect) => {
     if (!task) return null;
     
-    // Default options if not provided in task data
+    // Use options from task data or default options
     const options = task.data.options || [
       { id: 'alarm', text: 'Alarm', value: 'alarm' },
       { id: 'doorbell', text: 'Doorbell', value: 'doorbell' },
@@ -195,7 +157,7 @@ const AudioClassificationScreen = () => {
     
     return (
       <View style={styles.optionsContainer}>
-        {options.map((option: Option) => (
+        {options.map((option) => (
           <TouchableOpacity
             key={option.id}
             style={[
@@ -212,8 +174,8 @@ const AudioClassificationScreen = () => {
   };
 
   // Format annotation for submission
-  const formatAnnotation = (task: Task | null, selectedOption: string) => {
-    // Stop any playing audio when submitting a task
+  const formatAnnotation = (task, selectedOption) => {
+    // Stop any playing audio when submitting
     stopAudio();
     
     return {

@@ -1,16 +1,17 @@
 /**
  * This script updates the audio tasks in Label Studio with working audio URLs
+ * Using files from a reliable CDN with proper CORS headers
  */
 
 // API configuration
 const API_URL = 'http://192.168.1.104:9090';
 const API_TOKEN = '501c980772e98d56cab53109683af59c36ce5778';
 
-// Working audio URLs from reliable sources (MP3 format for better compatibility)
+// Working audio URLs from reliable sources (short MP3 files from a CDN)
 const workingAudioUrls = [
   { 
     id: 22, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
+    audio: 'https://cdn.freesound.org/previews/243/243953_1565498-lq.mp3',
     question: 'What type of sound is this?',
     options: [
       { id: 'alarm', text: 'Alarm', value: 'alarm' },
@@ -21,7 +22,7 @@ const workingAudioUrls = [
   },
   { 
     id: 23, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-light-rain-loop-2393.mp3',
+    audio: 'https://cdn.freesound.org/previews/169/169259_1407570-lq.mp3',
     question: 'What environment does this sound represent?',
     options: [
       { id: 'nature', text: 'Nature', value: 'nature' },
@@ -32,7 +33,7 @@ const workingAudioUrls = [
   },
   { 
     id: 24, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-car-horn-718.mp3',
+    audio: 'https://cdn.freesound.org/previews/277/277021_5324223-lq.mp3',
     question: 'What type of vehicle is making this sound?',
     options: [
       { id: 'car', text: 'Car', value: 'car' },

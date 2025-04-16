@@ -1,0 +1,44 @@
+[
+  {
+    "id": 2001,
+    "data": {
+      "audio": "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/ding.mp4",
+      "title": "Bell Sound",
+      "question": "What type of sound is this?",
+      "options": [
+        {"id": "bell", "text": "Bell/Chime", "value": "bell"},
+        {"id": "musical", "text": "Musical Instrument", "value": "musical"},
+        {"id": "voice", "text": "Human Voice", "value": "voice"},
+        {"id": "other", "text": "Other", "value": "other"}
+      ]
+    }
+  },
+  {
+    "id": 2002,
+    "data": {
+      "audio": "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/animal.mp4",
+      "title": "Animal Sound",
+      "question": "What animal made this sound?",
+      "options": [
+        {"id": "dog", "text": "Dog", "value": "dog"},
+        {"id": "cat", "text": "Cat", "value": "cat"},
+        {"id": "bird", "text": "Bird", "value": "bird"},
+        {"id": "other", "text": "Other Animal", "value": "other"}
+      ]
+    }
+  },
+  {
+    "id": 2003,
+    "data": {
+      "audio": "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/beat.mp4",
+      "title": "Music Sample",
+      "question": "What genre best describes this music?",
+      "options": [
+        {"id": "pop", "text": "Pop", "value": "pop"},
+        {"id": "hiphop", "text": "Hip Hop", "value": "hiphop"},
+        {"id": "electronic", "text": "Electronic", "value": "electronic"},
+        {"id": "other", "text": "Other Genre", "value": "other"}
+      ]
+    }
+  }
+]

@@ -5,9 +5,13 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import tasksJson from '../assets/tasks.json';
+import MockLabelStudioService from './MockLabelStudioService';
 
 // Constants
 const API_URL = 'http://192.168.1.106:9090';
+
+// Flag to control whether to use mock data when the server is unavailable
+const USE_MOCK_DATA_WHEN_OFFLINE = true;
 // Force token refresh by adding it as a function that's called each time
 const getApiToken = () => '501c980772e98d56cab53109683af59c36ce5778';
 
@@ -106,6 +110,7 @@ export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) =>
   const STORAGE_KEY = STORAGE_KEYS[projectType];
   
   console.log(`LabelStudioService: Fetching ${projectType} tasks from API...`);
+  console.log(`LabelStudioService: Project ID for ${projectType} is ${projectId}`);
   
   // For SURVEY project type, use the local tasks.json file directly
   if (projectType === 'SURVEY') {
@@ -169,29 +174,64 @@ export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) =>
       const tasksArray = Array.isArray(data) ? data : data.results || [];
       console.log('LabelStudioService: Extracted tasks:', tasksArray);
 
+      // Log some image URLs to debug issue
+      if (projectType === 'IMAGE_CLASSIFICATION') {
+        console.log('Image classification data:');
+        tasksArray.forEach((task, idx) => {
+          console.log(`Task ${idx} (ID: ${task.id}) image: ${task.data?.image}`);
+        });
+      }
+      
       // Optimize storage: Store only essential fields
-      const slimTasks = tasksArray.map(task => ({
-        id: task.id,
-        created_at: task.created_at,
-        data: {
-          // Include all possible data fields based on project type
-          link: task.data?.link,
-          str: task.data?.str,
-          text: task.data?.text,
-          title: task.data?.title,
-          image: task.data?.image,
-          audio: task.data?.audio,
-          question: task.data?.question,
-          description: task.data?.description,
-          // For geospatial labeling, use map_image if available, otherwise use image
-          map_image: task.data?.map_image || (projectType === 'GEOSPATIAL_LABELING' ? task.data?.image : undefined),
-          location_name: task.data?.location_name,
-          options: task.data?.options
-        },
-      }));
+      const slimTasks = tasksArray.map(task => {
+        // Preprocess image URLs if needed
+        let imageUrl = task.data?.image;
+        
+        // Fix image URL issues - ensure full URL and proper CORS headers
+        if (imageUrl && projectType === 'IMAGE_CLASSIFICATION') {
+          // If it's a relative URL, make it absolute using the Label Studio server
+          if (imageUrl.startsWith('/')) {
+            imageUrl = `${API_URL}${imageUrl}`;
+            console.log(`Converted relative image URL to: ${imageUrl}`);
+          }
+          
+          // If it's a local file or using data:, consider providing a public URL
+          if (imageUrl.startsWith('data:') || imageUrl.startsWith('file:')) {
+            // Fallback to a reliable image service if data: or file: URLs
+            console.log(`Replacing problematic image URL: ${imageUrl.substring(0, 30)}...`);
+            imageUrl = `https://storage.googleapis.com/generative-language-understanding/images/animals/dog${task.id % 5}.jpg`;
+          }
+        }
+        
+        return {
+          id: task.id,
+          created_at: task.created_at,
+          data: {
+            // Include all possible data fields based on project type
+            link: task.data?.link,
+            str: task.data?.str,
+            text: task.data?.text,
+            title: task.data?.title,
+            image: imageUrl,
+            audio: task.data?.audio,
+            question: task.data?.question,
+            description: task.data?.description,
+            // For geospatial labeling, use map_image if available, otherwise use image
+            map_image: task.data?.map_image || (projectType === 'GEOSPATIAL_LABELING' ? task.data?.image : undefined),
+            location_name: task.data?.location_name,
+            options: task.data?.options
+          },
+        };
+      });
 
       // Save to AsyncStorage with the correct project type
       await saveTasks(slimTasks, projectType);
+      
+      // For image classification, return the slimTasks with fixed URLs instead of original
+      if (projectType === 'IMAGE_CLASSIFICATION') {
+        console.log(`Returning ${slimTasks.length} processed image tasks`);
+        return slimTasks;
+      }
 
       return tasksArray;
     } catch (error) {
@@ -210,13 +250,27 @@ export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) =>
           console.log(`LabelStudioService: Using cached ${projectType} tasks`);
           return cachedTasks;
         }
+        
+        // If USE_MOCK_DATA_WHEN_OFFLINE is true and we have no cached tasks, use mock data
+        if (USE_MOCK_DATA_WHEN_OFFLINE) {
+          console.log(`LabelStudioService: No cached tasks, using mock ${projectType} tasks`);
+          return MockLabelStudioService.getMockTasks(projectType);
+        }
 
         console.log(`LabelStudioService: Using local fallback ${projectType} tasks`);
         // Return appropriate fallback tasks based on project type
         if (projectType === 'IMAGE_CLASSIFICATION') {
+          console.log('LabelStudioService: Using image classification fallback tasks');
           return require('../assets/image_classification_tasks.json');
+        } else if (projectType === 'AUDIO_CLASSIFICATION') {
+          console.log('LabelStudioService: Using audio classification fallback tasks');
+          return require('../assets/audio_classification_tasks.json');
+        } else if (projectType === 'GEOSPATIAL_LABELING') {
+          console.log('LabelStudioService: Using geospatial labeling fallback tasks');
+          return tasksJson.filter(task => task.data && task.data.image);
         } else {
-          return tasksJson; // Default to text sentiment tasks
+          console.log('LabelStudioService: Using text sentiment fallback tasks');
+          return tasksJson.filter(task => task.data && task.data.text); // Default to text sentiment tasks
         }
       }
 
@@ -379,6 +433,25 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
           }
         ]
       };
+    }
+    
+    // Try to detect if network is available before attempting the request
+    let networkAvailable = false;
+    try {
+      const testResponse = await fetch('https://www.google.com', { 
+        method: 'HEAD',
+        timeout: 3000
+      });
+      networkAvailable = testResponse.ok;
+    } catch (e) {
+      console.log('Network appears to be offline, using mock submission');
+      networkAvailable = false;
+    }
+    
+    // If network is unavailable and mocks are enabled, use mock submission
+    if (!networkAvailable && USE_MOCK_DATA_WHEN_OFFLINE) {
+      console.log('LabelStudioService: Using mock annotation submission');
+      return MockLabelStudioService.submitMockAnnotation(taskId, projectType, annotation);
     }
     
     // Submit the annotation to Label Studio

@@ -1,6 +1,7 @@
 import { TaskType, Task, TaskValidation, Web3Task } from '../types/tasks';
 
-export const TASK_ANSWERS: Record<string, TaskValidation> = {
+// Define validation answers for tasks
+const TASK_ANSWERS: Record<string, TaskValidation> = {
   'image-1': {
     correctAnswer: 'Cat',
     explanation: 'The image shows a cat with distinctive feline features like pointed ears and a long tail.',
@@ -65,7 +66,8 @@ export const TASK_ANSWERS: Record<string, TaskValidation> = {
   },
 };
 
-export const TASKS: Record<TaskType, Task[]> = {
+// Define standard tasks by type
+const TASKS: Record<TaskType, Task[]> = {
   'image': [
     {
       id: 'image-1',
@@ -260,13 +262,16 @@ export const TASKS: Record<TaskType, Task[]> = {
   'community': [],
 };
 
-export const WEB3_TASKS: Record<string, Web3Task> = {
+// Define Web3 tasks
+const WEB3_TASKS: Record<string, Web3Task> = {
   'airdrop': {
     id: 'airdrop',
     title: 'Token Airdrop Task',
     description: 'Follow LUCAS on social media and engage with our community to earn tokens',
-    reward: '5.00',
+    reward: '5.00 LUCAS',
     estimatedTime: '2-3 minutes',
+    category: 'Community',
+    difficulty: 'easy',
     steps: [
       {
         id: 'twitter',
@@ -286,12 +291,187 @@ export const WEB3_TASKS: Record<string, Web3Task> = {
       },
     ]
   },
+  'defi-101': {
+    id: 'defi-101',
+    title: 'DeFi Knowledge Check',
+    description: 'Test your knowledge of decentralized finance concepts and earn LUCAS tokens',
+    reward: '10.00 LUCAS',
+    estimatedTime: '5-8 minutes',
+    category: 'DeFi',
+    difficulty: 'medium',
+    steps: [
+      {
+        id: 'quiz1',
+        title: 'Basic DeFi Concepts',
+        description: 'Answer a few questions about DeFi fundamentals',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'a', text: 'Lending and borrowing without intermediaries' },
+          { id: 'b', text: 'A type of cryptocurrency' },
+          { id: 'c', text: 'Centralized financial instruments' },
+          { id: 'd', text: 'Banking regulations' }
+        ],
+        correctAnswer: 'a',
+        questionText: 'What is DeFi (Decentralized Finance)?'
+      },
+      {
+        id: 'quiz2',
+        title: 'Yield Farming',
+        description: 'Explain yield farming in DeFi',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'a', text: 'Mining cryptocurrencies' },
+          { id: 'b', text: 'Staking tokens to earn rewards' },
+          { id: 'c', text: 'Growing physical crops using blockchain' },
+          { id: 'd', text: 'A type of NFT' }
+        ],
+        correctAnswer: 'b',
+        questionText: 'What is yield farming in DeFi?'
+      },
+      {
+        id: 'quiz3',
+        title: 'Stablecoins',
+        description: 'Identify the correct definition of stablecoins',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'a', text: 'Cryptocurrencies with extremely high volatility' },
+          { id: 'b', text: 'Digital assets designed to maintain a stable value' },
+          { id: 'c', text: 'Government-issued digital currencies' },
+          { id: 'd', text: 'Tokens that can only be used on one platform' }
+        ],
+        correctAnswer: 'b',
+        questionText: 'What are stablecoins?'
+      }
+    ]
+  },
+  'nft-curation': {
+    id: 'nft-curation',
+    title: 'NFT Curation Task',
+    description: 'Help curate and categorize NFT collections for our upcoming marketplace',
+    reward: '15.00 LUCAS',
+    estimatedTime: '10-15 minutes',
+    category: 'NFTs',
+    difficulty: 'medium',
+    steps: [
+      {
+        id: 'categorize',
+        title: 'Categorize NFT Collection',
+        description: 'Review this collection and select the most appropriate category',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'art', text: 'Digital Art' },
+          { id: 'collectible', text: 'Collectibles' },
+          { id: 'game', text: 'Gaming Assets' },
+          { id: 'music', text: 'Music NFTs' },
+          { id: 'pfp', text: 'Profile Pictures' }
+        ],
+        questionText: 'What category best describes the Bored Ape Yacht Club collection?',
+        imageUrl: 'https://i.seadn.io/gae/i5dYZRkVCUK97bfprQ3WXyrT9BnLSZtVKGJlKQ919uaUB0sxbngVCioaiyu9r6snqfi2aaTyIvv6DHm4m2R3y4gWvdf5GjFWirH7ew?auto=format&dpr=1&w=512'
+      },
+      {
+        id: 'rate',
+        title: 'Rate NFT Quality',
+        description: 'Rate the artistic quality and originality of this NFT',
+        inputType: 'slider',
+        min: 1,
+        max: 10,
+        questionText: 'Rate the artistic quality of this CryptoPunk NFT:',
+        imageUrl: 'https://i.seadn.io/gae/H-eyNE1MwL5ohL-tCfn_Xa1Sl9M9B4612tLYeUlQubzt4ewhr4wJxh1KRvPliOdwWQX_IM7suD8X_vuDTU4YJBRWFHFgX9zh8Jis?auto=format&dpr=1&w=512'
+      }
+    ]
+  },
+  'dao-proposal': {
+    id: 'dao-proposal',
+    title: 'DAO Governance Task',
+    description: 'Review and vote on a proposal for the LUCAS DAO',
+    reward: '20.00 LUCAS',
+    estimatedTime: '5-10 minutes',
+    category: 'DAO',
+    difficulty: 'medium',
+    steps: [
+      {
+        id: 'read-proposal',
+        title: 'Review Proposal',
+        description: 'Read the following proposal for the LUCAS DAO treasury allocation',
+        inputType: 'info',
+        content: 'LUCAS DAO Proposal #42: Allocate 50,000 LUCAS tokens (5% of treasury) toward community education programs and hackathons to accelerate adoption of the platform. The funds will be distributed over 6 months with monthly reporting on outcomes.'
+      },
+      {
+        id: 'vote',
+        title: 'Cast Your Vote',
+        description: 'Vote on the proposal based on your assessment',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'for', text: 'For - I support this proposal' },
+          { id: 'against', text: 'Against - I do not support this proposal' },
+          { id: 'abstain', text: 'Abstain - I choose not to vote' }
+        ],
+        questionText: 'How do you vote on Proposal #42?'
+      },
+      {
+        id: 'reasoning',
+        title: 'Provide Reasoning',
+        description: 'Share your reasoning for your vote (optional)',
+        inputType: 'text',
+        placeholder: 'I voted this way because...',
+        optional: true
+      }
+    ]
+  },
+  'bridge-tutorial': {
+    id: 'bridge-tutorial',
+    title: 'Cross-Chain Bridge Tutorial',
+    description: 'Learn how to use cross-chain bridges safely and earn LUCAS tokens',
+    reward: '25.00 LUCAS',
+    estimatedTime: '15-20 minutes',
+    category: 'Education',
+    difficulty: 'advanced',
+    steps: [
+      {
+        id: 'intro',
+        title: 'Introduction to Bridges',
+        description: 'Learn what blockchain bridges are and why they are important',
+        inputType: 'info',
+        content: 'Blockchain bridges are protocols that connect different blockchains, allowing tokens and data to be transferred between them. They solve the interoperability problem in the fragmented blockchain ecosystem.'
+      },
+      {
+        id: 'security',
+        title: 'Bridge Security',
+        description: 'Understand security considerations when using bridges',
+        inputType: 'multiple-choice',
+        options: [
+          { id: 'a', text: 'All bridges are equally secure' },
+          { id: 'b', text: 'Bridges with more TVL (Total Value Locked) are always safer' },
+          { id: 'c', text: 'Different bridge architectures have different security trade-offs' },
+          { id: 'd', text: 'Centralized bridges are always more secure' }
+        ],
+        correctAnswer: 'c',
+        questionText: 'Which statement about bridge security is most accurate?'
+      },
+      {
+        id: 'simulate',
+        title: 'Bridge Simulation',
+        description: 'Follow the steps to complete a simulated bridge transaction',
+        inputType: 'checklist',
+        items: [
+          'Check the destination chain is supported',
+          'Verify the token contract address',
+          'Confirm gas fees on both chains',
+          'Check estimated completion time',
+          'Review final transaction details'
+        ],
+        questionText: 'Complete all steps in the correct order:'
+      }
+    ]
+  },
   'community': {
     id: 'community',
     title: 'Community Engagement',
     description: 'Participate in our community activities and governance',
-    reward: '1.00',
+    reward: '8.00 LUCAS',
     estimatedTime: '5-10 minutes',
+    category: 'Community',
+    difficulty: 'easy',
     steps: [
       {
         id: 'discord',
@@ -301,8 +481,20 @@ export const WEB3_TASKS: Record<string, Web3Task> = {
         placeholder: 'Enter your Discord username#0000',
         validation: /^.{3,32}#[0-9]{4}$/
       },
+      {
+        id: 'feedback',
+        title: 'Provide Feedback',
+        description: 'Share your thoughts on how we can improve the LUCAS platform',
+        inputType: 'textarea',
+        placeholder: 'I think LUCAS could improve by...',
+        minLength: 50
+      }
     ]
   }
 };
 
-export { TASKS, TASK_ANSWERS, WEB3_TASKS }
+// Add empty web3 array to fix TypeScript error
+TASKS.web3 = [];
+
+// Export all constants
+export { TASKS, TASK_ANSWERS, WEB3_TASKS };

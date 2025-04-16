@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration - same as in LabelStudioService.js
-const API_URL = 'http://192.168.1.106:9090';
+const API_URL = 'http://192.168.1.104:9090';
 const API_TOKEN = '501c980772e98d56cab53109683af59c36ce5778';
 
 // Project definitions with their labeling interfaces

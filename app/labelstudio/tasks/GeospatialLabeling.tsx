@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,11 @@ interface Option {
 
 const { width } = Dimensions.get('window');
 
-const GeospatialLabelingScreen = () => {
+interface GeospatialLabelingProps {
+  task?: Task | null;
+}
+
+const GeospatialLabelingScreen = (props: GeospatialLabelingProps) => {
   const [imageLoading, setImageLoading] = useState<boolean>(true);
   const [imageError, setImageError] = useState(false);
   const [fallbackTasks, setFallbackTasks] = useState<Task[]>([]);
@@ -70,15 +74,54 @@ const GeospatialLabelingScreen = () => {
       setCurrentTask(fallbackTasks[0]);
     }
   }, [fallbackTasks, currentTask]);
+  
+  // Set the original task ID when the component mounts or when task changes
+  useEffect(() => {
+    const taskFromProps = props.task;
+    
+    if (taskFromProps && originalTaskId === null) {
+      setOriginalTaskId(taskFromProps.id);
+    }
+  }, [props.task, originalTaskId]);
+  
+  // Handle fallback tasks only if no task from props is available
+  useEffect(() => {
+    if (!props.task && fallbackTasks.length > 0 && !currentTask) {
+      setCurrentTask(fallbackTasks[0]);
+    }
+  }, [props.task, fallbackTasks, currentTask]);
 
+  // Reference to the latest task to avoid state updates during render
+  const taskRef = useRef<Task | null>(null);
+  
+  // Track when a BaseTaskScreen passes a new task to renderTaskContent
+  const [lastTaskId, setLastTaskId] = useState<number | null>(null);
+  
+  // This function safely captures the task ID without state updates during render
+  const taskIdCapture = (task: Task | null) => {
+    if (task && task.id !== lastTaskId) {
+      // Use setTimeout to defer state update until after render is complete
+      setTimeout(() => {
+        setLastTaskId(task.id);
+        taskRef.current = task;
+      }, 0);
+    }
+    return task;
+  };
+  
+  // Handle task ID changes
+  useEffect(() => {
+    if (lastTaskId && originalTaskId === null) {
+      setOriginalTaskId(lastTaskId);
+    }
+  }, [lastTaskId, originalTaskId]);
+  
   // Render geospatial labeling task content
   const renderTaskContent = (task: Task | null) => {
     if (!task) return null;
     
-    // If we haven't stored the original task ID yet, store it
-    if (originalTaskId === null && task) {
-      setOriginalTaskId(task.id);
-    }
+    // Safely capture task ID without state updates during render
+    taskIdCapture(task);
     
     // Use current task (which might be a fallback) or the original task
     const displayTask = currentTask || task;
@@ -117,13 +160,6 @@ const GeospatialLabelingScreen = () => {
               console.error('Error loading map image:', imageUrl);
               setImageLoading(false);
               setImageError(true);
-              
-              // Try to use a fallback image from our local tasks
-              if (fallbackTasks.length > 0 && !currentTask) {
-                const fallbackTask = fallbackTasks[0];
-                console.log('Using fallback task:', fallbackTask.id);
-                setCurrentTask(fallbackTask);
-              }
             }}
           />
           <View style={styles.mapInfoContainer}>

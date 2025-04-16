@@ -1,4 +1,4 @@
-export type TaskType = 'image' | 'text' | 'object' | 'airdrop' | 'community';
+export type TaskType = 'image' | 'text' | 'object' | 'airdrop' | 'community' | 'web3';
 export type TaskDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface BoundingBox {
@@ -54,9 +54,19 @@ export interface Web3TaskStep {
   id: string;
   title: string;
   description: string;
-  inputType: 'text' | 'url' | 'wallet';
-  placeholder: string;
+  inputType: 'text' | 'url' | 'wallet' | 'multiple-choice' | 'slider' | 'info' | 'checklist' | 'textarea';
+  placeholder?: string;
   validation?: RegExp;
+  optional?: boolean;
+  options?: {id: string; text: string}[];
+  questionText?: string;
+  correctAnswer?: string;
+  imageUrl?: string;
+  content?: string;
+  min?: number;
+  max?: number;
+  items?: string[];
+  minLength?: number;
 }
 
 export interface Web3Task {
@@ -65,13 +75,15 @@ export interface Web3Task {
   description: string;
   reward: string;
   estimatedTime: string;
+  category?: string;
+  difficulty?: 'easy' | 'medium' | 'advanced';
   steps: Web3TaskStep[];
 }
 
 export interface Web3TaskSubmission {
   taskId: string;
   userId: string;
-  type: 'airdrop' | 'community';
+  type: 'airdrop' | 'community' | 'defi' | 'nft' | 'dao' | 'education';
   steps: {
     id: string;
     input: string;

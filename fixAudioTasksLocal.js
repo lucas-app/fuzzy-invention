@@ -1,44 +1,45 @@
 /**
  * This script updates the audio tasks in Label Studio with working audio URLs
+ * Using files from a reliable CDN with proper CORS headers and mobile compatibility
  */
 
 // API configuration
 const API_URL = 'http://192.168.1.104:9090';
 const API_TOKEN = '501c980772e98d56cab53109683af59c36ce5778';
 
-// Working audio URLs from reliable sources (MP3 format for better compatibility)
+// Working audio URLs from reliable sources with explicit CORS support
 const workingAudioUrls = [
   { 
     id: 22, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
-    question: 'What type of sound is this?',
+    audio: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    question: 'What type of content is this?',
     options: [
-      { id: 'alarm', text: 'Alarm', value: 'alarm' },
-      { id: 'notification', text: 'Notification', value: 'notification' },
-      { id: 'ringtone', text: 'Ringtone', value: 'ringtone' },
+      { id: 'music', text: 'Music', value: 'music' },
+      { id: 'speech', text: 'Speech', value: 'speech' },
+      { id: 'sound_effect', text: 'Sound Effect', value: 'sound_effect' },
       { id: 'other', text: 'Other', value: 'other' }
     ]
   },
   { 
     id: 23, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-light-rain-loop-2393.mp3',
-    question: 'What environment does this sound represent?',
+    audio: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    question: 'What do you hear in this audio?',
     options: [
-      { id: 'nature', text: 'Nature', value: 'nature' },
-      { id: 'urban', text: 'Urban', value: 'urban' },
-      { id: 'indoor', text: 'Indoor', value: 'indoor' },
-      { id: 'other', text: 'Other', value: 'other' }
+      { id: 'voices', text: 'Voices', value: 'voices' },
+      { id: 'music', text: 'Music', value: 'music' },
+      { id: 'both', text: 'Both voices and music', value: 'both' },
+      { id: 'other', text: 'Other sounds', value: 'other' }
     ]
   },
   { 
     id: 24, 
-    audio: 'https://assets.mixkit.co/sfx/preview/mixkit-car-horn-718.mp3',
-    question: 'What type of vehicle is making this sound?',
+    audio: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    question: 'What is the mood of this audio?',
     options: [
-      { id: 'car', text: 'Car', value: 'car' },
-      { id: 'motorcycle', text: 'Motorcycle', value: 'motorcycle' },
-      { id: 'truck', text: 'Truck', value: 'truck' },
-      { id: 'other', text: 'Other', value: 'other' }
+      { id: 'happy', text: 'Happy/Upbeat', value: 'happy' },
+      { id: 'sad', text: 'Sad/Melancholy', value: 'sad' },
+      { id: 'tense', text: 'Tense/Dramatic', value: 'tense' },
+      { id: 'neutral', text: 'Neutral', value: 'neutral' }
     ]
   }
 ];
