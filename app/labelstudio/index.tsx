@@ -9,8 +9,6 @@ import ImageClassificationScreen from './tasks/ImageClassification';
 import TextSentimentScreen from './tasks/TextSentiment';
 import SurveyScreen from './tasks/Survey';
 import GeospatialLabelingScreen from './tasks/GeospatialLabeling';
-import FixGeospatialTasks from './tasks/FixGeospatialTasks';
-import AudioDebugger from './tasks/AudioDebugger';
 import RLHFTasksScreen from './tasks/RLHFTasks';
 
 export default function LabelStudioRouter() {
@@ -48,12 +46,6 @@ export default function LabelStudioRouter() {
       
     case 'GEOSPATIAL_LABELING':
       return <GeospatialLabelingScreen />;
-      
-    case 'FIX_GEOSPATIAL':
-      return <FixGeospatialTasks />;
-      
-    case 'DEBUG':
-      return <AudioDebugger />;
       
     case 'RLHF':
       return <RLHFTasksScreen />;
