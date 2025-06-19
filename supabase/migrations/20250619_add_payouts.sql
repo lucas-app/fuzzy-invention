@@ -1,4 +1,15 @@
--- Create payouts table
+-- Create users table first
+CREATE TABLE public.users (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email        text UNIQUE NOT NULL,
+  created_at   timestamptz DEFAULT now(),
+  updated_at   timestamptz DEFAULT now()
+);
+
+-- Enable RLS on users
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Then create payouts table
 CREATE TABLE public.payouts (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
