@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import LabelStudioService from '../../../services/LabelStudioService.service';
+import LabelStudioService from '../../../services/LabelStudioService';
+import { getConfig, updateConfig } from '../../../lib/config';
 
 // Constants
 const COMPLETED_TASKS_KEY = 'COMPLETED_TASKS';
@@ -20,13 +21,29 @@ const COMPLETED_TASKS_KEY = 'COMPLETED_TASKS';
 export default function CreateAudioTasksScreen(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<string>('');
-  const [apiUrl, setApiUrlState] = useState<string>('http://192.168.1.107:9090');
-  const [apiToken, setApiToken] = useState<string>('501c980772e98d56cab53109683af59c36ce5778');
+  const [apiUrl, setApiUrlState] = useState<string>('');
+  const [apiToken, setApiToken] = useState<string>('');
+
+  // Load current configuration on component mount
+  React.useEffect(() => {
+    const loadConfig = () => {
+      const config = getConfig();
+      setApiUrlState(config.apiBaseUrl);
+      setApiToken(config.apiToken);
+    };
+    loadConfig();
+  }, []);
 
   const handleCreateTasks = async (): Promise<void> => {
     try {
       setLoading(true);
       setResult('Creating audio classification tasks...');
+      
+      // Update configuration with new values
+      await updateConfig({
+        apiBaseUrl: apiUrl,
+        apiToken: apiToken
+      });
       
       // Clear local cache to force refresh
       try {

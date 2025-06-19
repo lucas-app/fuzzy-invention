@@ -13,10 +13,8 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import LabelStudioService from '../../../services/LabelStudioService.service';
-
-const API_URL = 'https://label-studio.lucas.homes';
-const API_TOKEN = '501c980772e98d56cab53109683af59c36ce5778';
+import LabelStudioService from '../../../services/LabelStudioService';
+import { getConfig, updateConfig } from '../../../lib/config';
 
 const AudioDebugger = () => {
   const router = useRouter();
@@ -26,12 +24,19 @@ const AudioDebugger = () => {
   const [error, setError] = useState<string | null>(null);
   const [audioTasks, setAudioTasks] = useState<any[]>([]);
   const [cachedKeys, setCachedKeys] = useState<string[]>([]);
-  const [customUrl, setCustomUrl] = useState(API_URL);
-  const [customToken, setCustomToken] = useState(API_TOKEN);
+  const [customUrl, setCustomUrl] = useState('');
+  const [customToken, setCustomToken] = useState('');
 
   useEffect(() => {
     loadStorageKeys();
+    loadConfig();
   }, []);
+
+  const loadConfig = () => {
+    const config = getConfig();
+    setCustomUrl(config.apiBaseUrl);
+    setCustomToken(config.apiToken);
+  };
 
   const loadStorageKeys = async () => {
     try {
@@ -49,6 +54,12 @@ const AudioDebugger = () => {
       setError(null);
       setConnectionStatus('unknown');
       setStatusMessage('Testing connection to Label Studio...');
+
+      // Update configuration with current values
+      await updateConfig({
+        apiBaseUrl: customUrl,
+        apiToken: customToken
+      });
 
       // First test a basic connection to the server
       const response = await fetch(`${customUrl}/api/`, {

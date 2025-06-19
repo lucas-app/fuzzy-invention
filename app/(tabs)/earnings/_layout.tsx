@@ -5,6 +5,7 @@ export default function EarningsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        gestureEnabled: false,
       }}
     />
   );

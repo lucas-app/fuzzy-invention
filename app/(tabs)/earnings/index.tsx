@@ -154,6 +154,33 @@ const ActivityItem = ({ item }: { item: any }) => {
   );
 };
 
+// Helper functions for transaction display
+const getTransactionColor = (type: string): string => {
+  switch (type) {
+    case 'TASK_REWARD':
+      return '#10B981';
+    case 'WITHDRAWAL':
+      return '#EF4444';
+    case 'INVESTMENT':
+      return '#F59E0B';
+    default:
+      return '#3B82F6';
+  }
+};
+
+const getTransactionIcon = (type: string): keyof typeof Ionicons.glyphMap => {
+  switch (type) {
+    case 'TASK_REWARD':
+      return 'cash-outline';
+    case 'WITHDRAWAL':
+      return 'arrow-up-circle';
+    case 'INVESTMENT':
+      return 'trending-up-outline';
+    default:
+      return 'card-outline';
+  }
+};
+
 export default function EarningsScreen() {
   const { user } = useAuthStore();
   const { 
@@ -207,7 +234,7 @@ export default function EarningsScreen() {
 
   // Navigate to withdraw screen
   const handleWithdraw = () => {
-    router.push('/withdraw');
+    router.push('/(modals)/withdraw');
   };
 
   // Retry loading wallet data after error
@@ -295,41 +322,69 @@ export default function EarningsScreen() {
       >
         {/* Revolut-inspired header, now floating on the gradient background */}
         <View style={styles.revHeaderFloating}>
-          <Text style={styles.revContextLabel}>Personal · USDT</Text>
+          <View style={styles.revHeaderTop}>
+            <Text style={styles.revContextLabel}>Personal · USDT</Text>
+            <TouchableOpacity 
+              style={styles.refreshButton} 
+              onPress={onRefresh}
+              disabled={refreshing}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={20} 
+                color="#fff" 
+                style={{ opacity: refreshing ? 0.5 : 1 }}
+              />
+            </TouchableOpacity>
+          </View>
           <View style={styles.revBalanceRow}>
-            <Text style={styles.revBalanceMain}>$886.10</Text>
+            <Text style={styles.revBalanceMain}>
+              ${balance?.usdc_balance?.toFixed(2) || '0.00'}
+            </Text>
             <Text style={styles.revBalanceCurrency}>USDT</Text>
           </View>
-          <TouchableOpacity style={styles.revWithdrawPill} onPress={handleWithdraw}>
+          <TouchableOpacity 
+            style={styles.revWithdrawPill} 
+            onPress={handleWithdraw}
+            activeOpacity={0.8}
+          >
             <Ionicons name="arrow-up-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
             <Text style={styles.revWithdrawButtonText}>Withdraw</Text>
           </TouchableOpacity>
           {/* Single glassy bubble for both stats */}
           <View style={styles.revBubbleWide}>
             <View style={styles.revBubbleHalf}>
-              <Ionicons name="stats-chart" size={16} color="#fff" style={{ marginRight: 6 }} />
               <Text style={styles.revBubbleLabel}>Total Earned</Text>
-              <Text style={styles.revBubbleValue}>$45.67</Text>
+              <Text style={styles.revBubbleValue}>
+                ${balance?.total_earned?.toFixed(2) || '0.00'}
+              </Text>
+              <Text style={[styles.revBubbleLabel, { marginTop: 4, fontSize: 12, marginBottom: 0 }]}>
+                Lifetime earnings
+              </Text>
             </View>
             <View style={styles.revBubbleDivider} />
             <View style={styles.revBubbleHalf}>
-              <Ionicons name="time-outline" size={16} color="#F59E0B" style={{ marginRight: 6 }} />
-              <Text style={styles.revBubbleLabel}>Pending</Text>
-              <Text style={[styles.revBubbleValue, { color: '#F59E0B' }]}>$3.21</Text>
+              <Text style={styles.revBubbleLabel}>Available</Text>
+              <Text style={[styles.revBubbleValue, { color: '#10B981' }]}>
+                ${balance?.usdc_balance?.toFixed(2) || '0.00'}
+              </Text>
+              <Text style={[styles.revBubbleLabel, { marginTop: 4, fontSize: 12, marginBottom: 0 }]}>
+                Ready to withdraw
+              </Text>
             </View>
           </View>
         </View>
         {/* Recent Activity */}
         <View style={styles.revTransactionsBox}>
           <FlatList
-            data={mockTransactions}
+            data={transactions || []}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item, index }) => (
               <>
                 <View style={styles.revActivityRow}>
                   <View style={styles.revActivityIconWrap}>
-                    <View style={[styles.revActivityIcon, { backgroundColor: item.color }]}> 
-                      <Ionicons name={item.icon as any} size={22} color="#fff" />
+                    <View style={[styles.revActivityIcon, { backgroundColor: getTransactionColor(item.type) }]}> 
+                      <Ionicons name={getTransactionIcon(item.type)} size={22} color="#fff" />
                     </View>
                   </View>
                   <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -343,11 +398,18 @@ export default function EarningsScreen() {
                     {item.type === 'WITHDRAWAL' ? '-' : '+'}${Math.abs(item.amount).toFixed(2)}
                   </Text>
                 </View>
-                {index < mockTransactions.length - 1 && <View style={styles.revActivityDivider} />}
+                {index < (transactions?.length || 0) - 1 && <View style={styles.revActivityDivider} />}
               </>
             )}
             scrollEnabled={false}
             contentContainerStyle={{ paddingBottom: 8 }}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyTransactionsContainer}>
+                <Ionicons name="receipt-outline" size={32} color="#B6C7E3" />
+                <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
+                <Text style={styles.emptyTransactionsSubtext}>Complete tasks to see your earnings here</Text>
+              </View>
+            )}
           />
         </View>
       </ScrollView>
@@ -395,11 +457,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#fff',
     fontWeight: '600',
-  },
-  refreshButton: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   balanceAmountRow: {
     flexDirection: 'row',
@@ -910,6 +967,7 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 18,
     marginBottom: 18,
+    paddingHorizontal: 20,
   },
   revWithdrawPill: {
     flexDirection: 'row',
@@ -981,16 +1039,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   revBubbleLabel: {
-    fontSize: 15,
-    color: '#fff',
-    marginRight: 6,
+    fontSize: 14,
+    color: '#E0E6F7',
+    marginBottom: 8,
     fontWeight: '500',
   },
   revBubbleValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginLeft: 4,
   },
   revWithdrawButtonText: {
     color: '#fff',
@@ -1054,11 +1111,11 @@ const styles = StyleSheet.create({
   revBubbleWide: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.13)',
     borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.22)',
     minHeight: 48,
@@ -1069,7 +1126,6 @@ const styles = StyleSheet.create({
   },
   revBubbleHalf: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1100,5 +1156,43 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.10)',
     marginHorizontal: 18,
+  },
+  revHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    position: 'relative',
+    marginBottom: 12,
+  },
+  refreshButton: {
+    position: 'absolute',
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  emptyTransactionsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyTransactionsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 16,
+  },
+  emptyTransactionsSubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

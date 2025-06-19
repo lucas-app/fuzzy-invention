@@ -16,48 +16,6 @@ interface WalletState {
   clearError: () => void;
 }
 
-// Add mock data for development/testing
-const DEMO_BALANCE = {
-  user_id: 'demo-user',
-  usdc_balance: 12.34,
-  total_earned: 45.67,
-  pending_balance: 3.21,
-  updated_at: new Date().toISOString(),
-};
-
-const DEMO_TRANSACTIONS = [
-  {
-    id: '1',
-    user_id: 'demo-user',
-    type: 'TASK_REWARD' as 'TASK_REWARD',
-    amount: 5.00,
-    description: 'Task: Rate AI Chat',
-    created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
-    status: 'COMPLETED' as 'COMPLETED',
-    metadata: null,
-  },
-  {
-    id: '2',
-    user_id: 'demo-user',
-    type: 'TASK_REWARD' as 'TASK_REWARD',
-    amount: 2.50,
-    description: 'Task: Capture Photo',
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    status: 'COMPLETED' as 'COMPLETED',
-    metadata: null,
-  },
-  {
-    id: '3',
-    user_id: 'demo-user',
-    type: 'WITHDRAWAL' as 'WITHDRAWAL',
-    amount: 10.00,
-    description: 'Withdrawal to Wallet',
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-    status: 'PENDING' as 'PENDING',
-    metadata: null,
-  },
-];
-
 export const useWalletStore = create<WalletState>((set, get) => ({
   balance: null,
   transactions: [],
@@ -126,6 +84,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         throw new Error(`Failed to fetch transactions: ${txError.message}`);
       }
       
+      console.log(`📊 Fetched ${txData?.length || 0} transactions:`, txData);
       set({ transactions: txData || [] });
       console.log(`Successfully fetched wallet data. Balance: ${get().balance?.usdc_balance}, Transactions: ${txData?.length || 0}`);
     } catch (error) {
@@ -135,14 +94,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
-
-    // If fetch fails or returns no data, use demo data
-    set({
-      balance: DEMO_BALANCE,
-      transactions: DEMO_TRANSACTIONS,
-      isLoading: false,
-      error: null,
-    });
   },
 
   // Add a reward to the wallet
@@ -160,31 +111,34 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
 
     set({ isLoading: true, error: null });
-    console.log(`Adding reward of ${amount} USDC to user ${userId}: ${description}`);
+    console.log(`🚀 Adding reward of ${amount} USDC to user ${userId}: ${description}`);
 
     try {
       // First try to use the RPC function
       try {
+        console.log('📞 Attempting to use RPC function add_task_reward...');
         const { data, error } = await supabase.rpc('add_task_reward', {
           p_user_id: userId,
           p_amount: amount
         });
         
         if (error) {
-          console.error('RPC add_task_reward failed, falling back to direct DB operations:', error);
+          console.error('❌ RPC add_task_reward failed, falling back to direct DB operations:', error);
           throw error;
         }
         
+        console.log('✅ RPC add_task_reward succeeded');
         // If RPC succeeded, refresh wallet data and return
         await get().fetchWalletData(userId);
         return true;
       } catch (rpcError) {
         // If RPC failed, fall back to direct DB operations
-        console.log('Falling back to direct database operations for reward');
+        console.log('🔄 Falling back to direct database operations for reward');
         
         // 1. Start a transaction (done manually through separate operations)
         
         // 2. Get current balance
+        console.log('📊 Fetching current balance...');
         const { data: currentBalance, error: balanceError } = await supabase
           .from('user_balances')
           .select('*')
@@ -194,6 +148,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         if (balanceError) {
           // If no balance record exists, create one
           if (balanceError.code === 'PGRST116') {
+            console.log('🆕 No balance record found, creating initial balance...');
             const initialBalance = {
               user_id: userId,
               usdc_balance: amount,
@@ -212,11 +167,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
               throw new Error(`Failed to create initial balance: ${createError.message}`);
             }
             
+            console.log('✅ Initial balance created:', newBalance);
             set({ balance: newBalance });
           } else {
             throw new Error(`Failed to fetch current balance: ${balanceError.message}`);
           }
         } else {
+          console.log('📊 Current balance found:', currentBalance);
           // 3. Update the balance
           const updatedBalance = {
             usdc_balance: (currentBalance.usdc_balance || 0) + amount,
@@ -224,6 +181,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             updated_at: new Date().toISOString()
           };
           
+          console.log('💰 Updating balance with:', updatedBalance);
           const { data: newBalance, error: updateError } = await supabase
             .from('user_balances')
             .update(updatedBalance)
@@ -235,10 +193,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             throw new Error(`Failed to update balance: ${updateError.message}`);
           }
           
+          console.log('✅ Balance updated:', newBalance);
           set({ balance: newBalance });
         }
         
         // 4. Create transaction record
+        console.log('📝 Creating transaction record...');
         const newTransaction = {
           user_id: userId,
           type: 'TASK_REWARD',
@@ -249,21 +209,27 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           metadata: null
         };
         
-        const { error: transactionError } = await supabase
+        console.log('📝 Transaction data:', newTransaction);
+        const { data: transactionData, error: transactionError } = await supabase
           .from('transactions')
-          .insert([newTransaction]);
+          .insert([newTransaction])
+          .select();
         
         if (transactionError) {
           throw new Error(`Failed to create transaction record: ${transactionError.message}`);
         }
+        
+        console.log('✅ Transaction created:', transactionData);
       }
       
       // Refresh wallet data to show the latest state
+      console.log('🔄 Refreshing wallet data...');
       await get().fetchWalletData(userId);
+      console.log('✅ Reward added successfully!');
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error adding reward';
-      console.error('Error in addReward:', errorMessage);
+      console.error('❌ Error in addReward:', errorMessage);
       set({ error: errorMessage });
       return false;
     } finally {

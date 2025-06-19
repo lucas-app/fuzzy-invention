@@ -7,9 +7,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MockService from './MockLabelStudioService';
 import { Database } from '@/types/supabase';
 import { Alert } from 'react-native';
+import {
+  getApiBaseUrl,
+  getApiToken,
+  getProjectId,
+  getStorageKey,
+  getRequestTimeout,
+  getMaxRetries,
+  getTaskExpiryTime,
+  shouldUseMockData,
+  shouldUseMockDataWhenOffline,
+  getProjects,
+} from '@/lib/config';
 
 // Constants for API and projects
-const API_URL = 'http://192.168.1.106:8080';
 const API_TOKEN = 'ae7b71fb2f3603cf1ccf341ee9514ec935e5c961';
 // Force use of Label Studio only - disable mock data
 const USE_MOCK_DATA = false; 
@@ -32,9 +43,6 @@ const STORAGE_KEYS = {
   GEOSPATIAL_LABELING: 'CACHED_GEOSPATIAL_TASKS',
   SURVEY: 'CACHED_SURVEY_TASKS'
 };
-
-// Helper function to get API token
-const getApiToken = () => 'ae7b71fb2f3603cf1ccf341ee9514ec935e5c961';
 
 // Task interface based on Label Studio API response
 export interface Task {
@@ -66,7 +74,7 @@ const ANNOTATIONS_ENDPOINT = (taskId: number) => `/api/tasks/${taskId}/annotatio
  */
 const fetchTasks = async (
   projectType: string = 'TEXT_SENTIMENT',
-  retries: number = 3,
+  retries: number = getMaxRetries(),
   forceRefresh: boolean = false
 ): Promise<Task[]> => {
   try {
@@ -92,11 +100,9 @@ const fetchTasks = async (
     // Clear cache if forceRefresh is true
     if (forceRefresh) {
       try {
-        const storageKey = STORAGE_KEYS[projectType as keyof typeof STORAGE_KEYS];
-        if (storageKey) {
-          await AsyncStorage.removeItem(storageKey);
-          console.log(`LabelStudioService: Cleared cache for ${projectType}`);
-        }
+        const storageKey = getStorageKey(projectType);
+        await AsyncStorage.removeItem(storageKey);
+        console.log(`LabelStudioService: Cleared cache for ${projectType}`);
       } catch (e) {
         console.error("Error clearing cache:", e);
       }
@@ -111,33 +117,14 @@ const fetchTasks = async (
     }
     
     // Get project ID based on project type
-    let projectId: number;
-    switch (projectType) {
-      case 'IMAGE_CLASSIFICATION':
-        projectId = PROJECTS.IMAGE_CLASSIFICATION;
-        break;
-      case 'AUDIO_CLASSIFICATION':
-        projectId = PROJECTS.AUDIO_CLASSIFICATION;
-        break;
-      case 'TEXT_SENTIMENT':
-        projectId = PROJECTS.TEXT_SENTIMENT;
-        break;
-      case 'GEOSPATIAL_LABELING':
-        projectId = PROJECTS.GEOSPATIAL_LABELING;
-        break;
-      case 'SURVEY':
-        projectId = PROJECTS.SURVEY;
-        break;
-      default:
-        projectId = PROJECTS.TEXT_SENTIMENT;
-    }
+    const projectId = getProjectId(projectType);
     
     // Fetch tasks from Label Studio API
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Longer timeout (15s instead of 10s)
+    const timeoutId = setTimeout(() => controller.abort(), getRequestTimeout());
     
     // Log the full URL being accessed for debugging
-    const fullUrl = `${API_URL}${getTasksEndpoint(projectId)}`;
+    const fullUrl = `${getApiBaseUrl()}${getTasksEndpoint(projectId)}`;
     console.log(`LabelStudioService: Fetching from URL: ${fullUrl}`);
     
     const response = await fetch(fullUrl, {
@@ -201,18 +188,16 @@ const fetchTasks = async (
   } catch (error: unknown) {
     console.error(`LabelStudioService: Error fetching tasks - ${error instanceof Error ? error.message : String(error)}`);
     
-    // Check if we have cached tasks as a last resort
-    try {
-      const cachedTasks = await getCachedTasks(projectType);
-      if (cachedTasks && cachedTasks.length > 0) {
-        console.log(`LabelStudioService: Using cached tasks due to fetch error`);
-        return cachedTasks;
+    // If mocks are enabled, use mock data as fallback
+    if (shouldUseMockData()) {
+      console.log('LabelStudioService: Using mock tasks as fallback');
+      const mockTasks = await MockService.getMockTasks(projectType);
+      if (mockTasks.length > 0) {
+        await saveTasks(mockTasks, projectType);
       }
-    } catch (cacheError) {
-      console.error("Failed to retrieve cached tasks:", cacheError);
+      return mockTasks;
     }
     
-    // Throw the error for the calling component to handle
     throw error;
   }
 };
@@ -225,8 +210,12 @@ const saveTasks = async (
   projectType: string = 'TEXT_SENTIMENT'
 ): Promise<void> => {
   try {
-    const storageKey = STORAGE_KEYS[projectType as keyof typeof STORAGE_KEYS] || STORAGE_KEYS.TEXT_SENTIMENT;
-    await AsyncStorage.setItem(storageKey, JSON.stringify(tasks));
+    const storageKey = getStorageKey(projectType);
+    const dataToSave = {
+      tasks,
+      timestamp: Date.now()
+    };
+    await AsyncStorage.setItem(storageKey, JSON.stringify(dataToSave));
     console.log(`LabelStudioService: Saved ${tasks.length} ${projectType} tasks to cache`);
   } catch (error: unknown) {
     console.error(`LabelStudioService: Error saving tasks to cache - ${error instanceof Error ? error.message : String(error)}`);
@@ -240,12 +229,19 @@ const getCachedTasks = async (
   projectType: string = 'TEXT_SENTIMENT'
 ): Promise<Task[] | null> => {
   try {
-    const storageKey = STORAGE_KEYS[projectType as keyof typeof STORAGE_KEYS] || STORAGE_KEYS.TEXT_SENTIMENT;
-    const tasksJson = await AsyncStorage.getItem(storageKey);
-    if (tasksJson) {
-      const tasks = JSON.parse(tasksJson) as Task[];
-      console.log(`LabelStudioService: Retrieved ${tasks.length} ${projectType} tasks from cache`);
-      return tasks;
+    const storageKey = getStorageKey(projectType);
+    const cachedData = await AsyncStorage.getItem(storageKey);
+    if (cachedData) {
+      const { tasks, timestamp } = JSON.parse(cachedData);
+      const isExpired = Date.now() - timestamp > getTaskExpiryTime();
+      
+      if (tasks && tasks.length > 0 && !isExpired) {
+        console.log(`LabelStudioService: Retrieved ${tasks.length} ${projectType} tasks from cache`);
+        return tasks;
+      } else if (isExpired) {
+        console.log(`LabelStudioService: Cached ${projectType} tasks have expired`);
+        await AsyncStorage.removeItem(storageKey);
+      }
     }
     return null;
   } catch (error: unknown) {
@@ -276,7 +272,7 @@ export const submitAnnotation = async (
         setTimeout(() => reject(new Error('Network request timeout')), 5000);
       });
       
-      const fetchPromise = fetch(`${API_URL}/health-check`, {
+      const fetchPromise = fetch(`${getApiBaseUrl()}/health-check`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -295,13 +291,13 @@ export const submitAnnotation = async (
     }
     
     // If network is unavailable and mocks are enabled, use mock submission
-    if (!networkAvailable && USE_MOCK_DATA_WHEN_OFFLINE) {
+    if (!networkAvailable && shouldUseMockDataWhenOffline()) {
       console.log('LabelStudioService: Using mock annotation submission');
       return MockService.submitMockAnnotation(taskId, projectType, formattedAnnotation);
     }
     
     // Construct the full API endpoint URL for better debugging
-    const endpointUrl = `${API_URL}${ANNOTATIONS_ENDPOINT(taskId)}`;
+    const endpointUrl = `${getApiBaseUrl()}${ANNOTATIONS_ENDPOINT(taskId)}`;
     console.log(`LabelStudioService: Submitting to endpoint: ${endpointUrl}`);
     
     // Submit the annotation to Label Studio
@@ -347,7 +343,7 @@ const updateGeospatialTasks = async (): Promise<boolean> => {
  */
 const createAudioClassificationTasks = async (): Promise<boolean> => {
   const API_TOKEN = getApiToken();
-  const projectId = PROJECTS.AUDIO_CLASSIFICATION;
+  const projectId = getProjectId('AUDIO_CLASSIFICATION');
   const TASKS_ENDPOINT = getTasksEndpoint(projectId);
   
   try {
@@ -421,7 +417,7 @@ const createAudioClassificationTasks = async (): Promise<boolean> => {
     let createdCount = 0;
     for (const task of audioTasks) {
       try {
-        const response = await fetch(`${API_URL}${TASKS_ENDPOINT}`, {
+        const response = await fetch(`${getApiBaseUrl()}${TASKS_ENDPOINT}`, {
           method: 'POST',
           headers: {
             'Authorization': `Token ${API_TOKEN}`,
@@ -476,8 +472,9 @@ const saveTaskCompletion = async (
     let formattedAnswers;
     
     // Different project types have different annotation formats
+    const projects = getProjects();
     switch (projectId) {
-      case PROJECTS.IMAGE_CLASSIFICATION:
+      case projects.IMAGE_CLASSIFICATION:
         formattedAnswers = {
           "result": [
             {
@@ -492,7 +489,7 @@ const saveTaskCompletion = async (
         };
         break;
       
-      case PROJECTS.AUDIO_CLASSIFICATION:
+      case projects.AUDIO_CLASSIFICATION:
         formattedAnswers = {
           "result": [
             {
@@ -507,7 +504,7 @@ const saveTaskCompletion = async (
         };
         break;
       
-      case PROJECTS.TEXT_SENTIMENT:
+      case projects.TEXT_SENTIMENT:
         formattedAnswers = {
           "result": [
             {
@@ -522,7 +519,7 @@ const saveTaskCompletion = async (
         };
         break;
       
-      case PROJECTS.GEOSPATIAL_LABELING:
+      case projects.GEOSPATIAL_LABELING:
         formattedAnswers = {
           "result": [
             {
@@ -537,7 +534,7 @@ const saveTaskCompletion = async (
         };
         break;
       
-      case PROJECTS.SURVEY:
+      case projects.SURVEY:
         formattedAnswers = {
           "result": [
             {
@@ -568,7 +565,7 @@ const saveTaskCompletion = async (
     }
     
     // Submit the annotation to Label Studio
-    const response = await fetch(`${API_URL}${ANNOTATIONS_ENDPOINT(task.id)}`, {
+    const response = await fetch(`${getApiBaseUrl()}${ANNOTATIONS_ENDPOINT(task.id)}`, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${getApiToken()}`,
@@ -602,7 +599,7 @@ export default {
   updateGeospatialTasks,
   createAudioClassificationTasks,
   getApiToken,
-  API_URL,
-  PROJECTS,
+  getApiBaseUrl,
+  getProjects,
   saveTaskCompletion
 };

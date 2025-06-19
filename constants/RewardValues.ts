@@ -4,7 +4,8 @@ export const taskValue = {
   image: 2.0,
   audio: 3.0,
   text: 1.5,
-  survey: 1.0
+  survey: 1.0,
+  rlhf: 4.0
 };
 
 // Target count of tasks for different types
@@ -13,5 +14,6 @@ export const taskCount = {
   image: 20,
   audio: 15,
   text: 25,
-  survey: 10
+  survey: 10,
+  rlhf: 12
 }; 

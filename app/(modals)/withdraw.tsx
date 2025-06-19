@@ -1,35 +1,53 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 
-const WITHDRAWAL_OPTIONS = [
-  {
-    id: 'crypto',
-    title: 'Withdraw to Crypto Wallet',
-    description: 'Send to any ERC-20 compatible wallet',
-    icon: '🔗',
-    fields: [
-      { id: 'address', label: 'Wallet Address', placeholder: 'Enter your ERC-20 wallet address' },
-      { id: 'amount', label: 'Amount (USDC)', placeholder: 'Enter amount to withdraw', keyboardType: 'decimal-pad' },
-    ],
-  },
+interface WithdrawalField {
+  id: string;
+  label: string;
+  placeholder: string;
+  keyboardType?: 'default' | 'decimal-pad';
+  value?: string;
+}
+
+interface WithdrawalOption {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  fields: WithdrawalField[];
+  recommended?: boolean;
+}
+
+const WITHDRAWAL_OPTIONS: WithdrawalOption[] = [
   {
     id: 'binance',
     title: 'Withdraw to Binance',
-    description: 'Instant transfer to your Binance account',
+    description: 'Fast and free transfer to your Binance account',
     icon: '🏦',
     fields: [
       { id: 'email', label: 'Binance Email', placeholder: 'Enter your Binance account email' },
-      { id: 'amount', label: 'Amount (USDC)', placeholder: 'Enter amount to withdraw', keyboardType: 'decimal-pad' },
+      { id: 'amount', label: 'Amount (USDT)', placeholder: 'Enter amount to withdraw', keyboardType: 'decimal-pad' },
+    ],
+    recommended: true,
+  },
+  {
+    id: 'crypto',
+    title: 'Withdraw to Crypto Wallet',
+    description: 'Send to any ERC-20 compatible wallet (Gas fees apply)',
+    icon: '🔗',
+    fields: [
+      { id: 'address', label: 'Wallet Address', placeholder: 'Enter your ERC-20 wallet address' },
+      { id: 'amount', label: 'Amount (USDT)', placeholder: 'Enter amount to withdraw', keyboardType: 'decimal-pad' },
     ],
   },
   {
     id: 'fiat',
     title: 'Withdraw to Bank Account',
-    description: 'Transfer to your linked bank account',
+    description: 'Transfer to your linked bank account (3-5 business days)',
     icon: '💵',
     fields: [
       { id: 'accountName', label: 'Account Name', placeholder: 'Enter account holder name' },
@@ -41,20 +59,24 @@ const WITHDRAWAL_OPTIONS = [
 ];
 
 export default function WithdrawModal() {
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [selectedOption, setSelectedOption] = useState<WithdrawalOption | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleOptionSelect = (optionId: string) => {
-    setSelectedOption(optionId);
-    setFormData({});
+  const isValid = selectedOption && selectedOption.fields.every(field => 
+    formValues[field.id] && formValues[field.id].trim() !== ''
+  );
+
+  const handleOptionSelect = (option: WithdrawalOption) => {
+    setSelectedOption(option);
+    setFormValues({});
     setError(null);
   };
 
   const handleInputChange = (fieldId: string, value: string) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
+    setFormValues(prev => ({ ...prev, [fieldId]: value }));
     setError(null);
   };
 
@@ -67,14 +89,13 @@ export default function WithdrawModal() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Validation
-      const option = WITHDRAWAL_OPTIONS.find(opt => opt.id === selectedOption);
-      const missingFields = option?.fields.filter(field => !formData[field.id]);
+      const missingFields = selectedOption?.fields.filter(field => !formValues[field.id]);
       
       if (missingFields?.length) {
         throw new Error('Please fill in all required fields');
       }
 
-      if (formData.amount && parseFloat(formData.amount) <= 0) {
+      if (formValues.amount && parseFloat(formValues.amount) <= 0) {
         throw new Error('Amount must be greater than 0');
       }
 
@@ -89,11 +110,17 @@ export default function WithdrawModal() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.closeButton}>
+        <Pressable 
+          onPress={() => router.back()} 
+          style={styles.closeButton}
+          hitSlop={8}
+        >
           <Ionicons name="close" size={24} color="#020733" />
         </Pressable>
         <Text style={styles.title}>Withdraw Funds</Text>
       </View>
+
+      <View style={styles.handle} />
 
       {!selectedOption && (
         <Animated.View 
@@ -104,17 +131,22 @@ export default function WithdrawModal() {
           {WITHDRAWAL_OPTIONS.map((option) => (
             <Pressable
               key={option.id}
-              style={styles.optionCard}
-              onPress={() => handleOptionSelect(option.id)}
+              style={[
+                styles.optionCard,
+                option.recommended && styles.recommendedOption
+              ]}
+              onPress={() => handleOptionSelect(option)}
             >
-              <View style={styles.optionIcon}>
-                <Text style={styles.optionIconText}>{option.icon}</Text>
-              </View>
-              <View style={styles.optionInfo}>
+              <View style={styles.optionHeader}>
+                <Text style={styles.optionIcon}>{option.icon}</Text>
                 <Text style={styles.optionTitle}>{option.title}</Text>
-                <Text style={styles.optionDescription}>{option.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              {option.recommended && (
+                <View style={styles.recommendedBadge}>
+                  <Text style={styles.recommendedText}>RECOMMENDED</Text>
+                </View>
+              )}
+              <Text style={styles.optionDescription}>{option.description}</Text>
             </Pressable>
           ))}
         </Animated.View>
@@ -126,14 +158,14 @@ export default function WithdrawModal() {
           exiting={SlideOutLeft}
           style={styles.formContainer}
         >
-          {WITHDRAWAL_OPTIONS.find(opt => opt.id === selectedOption)?.fields.map((field) => (
+          {selectedOption.fields.map((field) => (
             <View key={field.id} style={styles.inputContainer}>
               <Text style={styles.inputLabel}>{field.label}</Text>
               <TextInput
                 style={styles.input}
                 placeholder={field.placeholder}
                 placeholderTextColor="#94a3b8"
-                value={formData[field.id]}
+                value={formValues[field.id]}
                 onChangeText={(value) => handleInputChange(field.id, value)}
                 keyboardType={field.keyboardType as any || 'default'}
                 autoCapitalize="none"
@@ -146,20 +178,22 @@ export default function WithdrawModal() {
             <Text style={styles.errorText}>{error}</Text>
           )}
 
-          <Pressable onPress={handleSubmit} disabled={loading}>
-            <LinearGradient
-              colors={['#22D3EE', '#2DD4BF'] as const}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Confirm Withdrawal</Text>
-              )}
-            </LinearGradient>
-          </Pressable>
+          <TouchableOpacity
+            style={[
+              styles.withdrawButton,
+              !isValid && styles.withdrawButtonDisabled
+            ]}
+            onPress={handleSubmit}
+            disabled={!isValid || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.withdrawButtonText}>
+                Withdraw {formValues.amount || '0'} USDT
+              </Text>
+            )}
+          </TouchableOpacity>
         </Animated.View>
       )}
 
@@ -196,6 +230,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'ios' ? 56 : 20,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    position: 'absolute',
+    top: 8,
   },
   closeButton: {
     padding: 8,
@@ -210,42 +254,54 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f1f5f9',
-    justifyContent: 'center',
+  recommendedOption: {
+    backgroundColor: '#f0f9ff',
+    borderColor: '#0ea5e9',
+    borderWidth: 2,
+  },
+  optionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 12,
   },
-  optionIconText: {
+  optionIcon: {
     fontSize: 24,
-  },
-  optionInfo: {
-    flex: 1,
+    marginRight: 12,
   },
   optionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#020733',
-    marginBottom: 4,
+    flex: 1,
+  },
+  recommendedBadge: {
+    backgroundColor: '#0ea5e9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  recommendedText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   optionDescription: {
     fontSize: 14,
     color: '#64748b',
+    marginBottom: 16,
   },
   formContainer: {
     padding: 20,
@@ -256,14 +312,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#020733',
+    color: '#334155',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
     color: '#020733',
@@ -273,17 +329,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 16,
   },
-  submitButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
+  withdrawButton: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: Platform.OS === 'ios' ? 34 : 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
+  withdrawButtonDisabled: {
+    backgroundColor: '#94a3b8',
+    opacity: 0.5,
   },
-  submitButtonText: {
+  withdrawButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, View, StyleSheet, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../store/authStore';
 import { initializeAuthListener } from '../lib/supabase';
@@ -16,8 +16,9 @@ declare global {
 export default function RootLayout() {
   useFrameworkReady();
   const colorScheme = useColorScheme();
+  const [isLoading, setIsLoading] = useState(true);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
-  const { user, isLoading } = useAuthStore();
+  const { user } = useAuthStore();
   
   useEffect(() => {
     // Required framework initialization
@@ -48,9 +49,14 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <View style={styles.container}>
-        <Slot 
-          screenOptions={{
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen 
+          name="(tabs)"
+          options={{
             headerShown: false,
             contentStyle: {
               backgroundColor: colorScheme === 'dark' ? '#000' : '#fff',
@@ -58,14 +64,24 @@ export default function RootLayout() {
           }}
         />
         
-        {(!isAuthInitialized && isLoading) && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#007AFF" />
-          </View>
-        )}
-        
-        <StatusBar style="light" />
-      </View>
+        <Stack.Screen
+          name="(modals)/withdraw"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+          }}
+        />
+      </Stack>
+      
+      {(!isAuthInitialized && isLoading) && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      )}
+      
+      <StatusBar style="light" />
     </GestureHandlerRootView>
   );
 }
@@ -76,9 +92,8 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
   },
 });

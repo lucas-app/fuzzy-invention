@@ -4,7 +4,8 @@ export enum TaskType {
   IMAGE = 'IMAGE_CLASSIFICATION',
   AUDIO = 'AUDIO_CLASSIFICATION',
   TEXT = 'TEXT_SENTIMENT',
-  SURVEY = 'SURVEY'
+  SURVEY = 'SURVEY',
+  RLHF = 'RLHF'
 }
 
 export type TaskDifficulty = 'easy' | 'medium' | 'hard';

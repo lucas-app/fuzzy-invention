@@ -92,7 +92,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       case 'HOT':
         return 'rgba(255, 126, 88, 0.9)';
       case 'QUICK':
-        return 'rgba(73, 160, 255, 0.9)';
+        return 'rgba(255, 217, 61, 0.9)';
       case 'PREMIUM':
         return 'rgba(249, 134, 229, 0.9)';
       case 'TRENDING':

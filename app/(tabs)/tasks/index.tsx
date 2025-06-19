@@ -41,9 +41,9 @@ const COLORS = {
   textCardEnd: '#FF7860',     // Base orange
   textLabel: '#D13F00',       // Darker orange for label
   
-  audioCardStart: '#5CDBF2',  // Lighter, more pastel blue
-  audioCardEnd: '#22AAC1',    // Base blue
-  audioLabel: '#167788',      // Darker blue for label
+  audioCardStart: '#FFD93D',  // Modern golden yellow
+  audioCardEnd: '#FFB800',    // Deeper golden yellow
+  audioLabel: '#B8860B',      // Dark goldenrod for label
   
   surveyCardStart: '#F986E5', // Lighter, more pastel purple
   surveyCardEnd: '#BA5EDC',   // Base purple
@@ -93,6 +93,21 @@ type TaskType = {
 // Task type definitions with exact colors from the palette
 const TASK_TYPES: TaskType[] = [
   {
+    id: 'rlhf',
+    title: 'Rate AI Chat Responses',
+    description: 'Help train better AI by ranking model responses',
+    icon: 'chatbubbles',
+    labelColor: '#FF6A3D',
+    gradientStart: '#FF6A3D',
+    gradientEnd: '#FF3D71',
+    projectType: 'RLHF',
+    reward: '$1.00-$4.00',
+    badgeType: 'HOT',
+    estimatedTime: '1-3 min',
+    difficulty: 'Easy',
+    tasks: [],
+  },
+  {
     id: 'photos',
     title: 'Capture Real-World Photos',
     description: 'Take pictures of stores, signs, streets & more',
@@ -107,27 +122,13 @@ const TASK_TYPES: TaskType[] = [
     difficulty: 'Easy',
   },
   {
-    id: 'ai-chat',
-    title: 'Rate AI Chat Responses',
-    description: 'Help train better conversations in Spanish',
-    icon: 'chatbubble-ellipses',
-    labelColor: '#FF7E58',
-    gradientStart: '#FF7E58',
-    gradientEnd: '#FF5630',
-    projectType: 'CHAT_RATING',
-    reward: '$0.25-$3.00',
-    badgeType: 'HOT',
-    estimatedTime: '1-3 min',
-    difficulty: 'Easy',
-  },
-  {
     id: 'voice',
     title: 'Record Your Voice',
     description: 'Speak, read, and transcribe to teach Voice AI',
     icon: 'mic',
-    labelColor: '#49A0FF',
-    gradientStart: '#49A0FF',
-    gradientEnd: '#3B82F6',
+    labelColor: '#FFD93D',
+    gradientStart: '#FFD93D',
+    gradientEnd: '#FFB800',
     projectType: 'VOICE_RECORDING',
     reward: '$0.75-$8.00',
     badgeType: 'QUICK',
@@ -147,57 +148,6 @@ const TASK_TYPES: TaskType[] = [
     badgeType: 'PREMIUM',
     estimatedTime: '5-10 min',
     difficulty: 'Medium',
-  },
-  {
-    id: 'web3',
-    title: 'Web3 Tasks',
-    description: 'Follow, join, and engage with top Web3 projects',
-    icon: 'logo-bitcoin',
-    labelColor: '#FFB869',
-    gradientStart: '#FFB869',
-    gradientEnd: '#FF9F1C',
-    projectType: 'CRYPTO_PROMO',
-    reward: '$0.50-$15.00',
-    badgeType: 'TRENDING',
-    estimatedTime: '2-8 min',
-    difficulty: 'Easy',
-    tasks: [
-      {
-        id: '1',
-        type: 'twitter-follow',
-        title: 'Follow Project X on Twitter',
-        description: 'Follow @ProjectX to stay updated and earn rewards.',
-        url: 'https://twitter.com/ProjectX',
-      },
-      {
-        id: '2',
-        type: 'discord-join',
-        title: 'Join Project X Discord',
-        description: 'Join the Project X Discord community and say hello!',
-        url: 'https://discord.gg/projectx',
-      },
-      {
-        id: '3',
-        type: 'airdrop',
-        title: 'Participate in Project X Airdrop',
-        description: 'Complete the airdrop form to get a chance to win tokens.',
-        url: 'https://projectx.com/airdrop',
-      },
-      {
-        id: '4',
-        type: 'twitter-retweet',
-        title: 'Retweet Project X Announcement',
-        description: 'Retweet the latest announcement to spread the word.',
-        url: 'https://twitter.com/ProjectX/status/1234567890',
-      },
-      {
-        id: '5',
-        type: 'telegram-join',
-        title: 'Join Project X Telegram',
-        description: 'Join the Telegram group for exclusive updates.',
-        url: 'https://t.me/projectx',
-      },
-    ],
   },
   {
     id: 'bonus',
@@ -248,8 +198,8 @@ function TaskTypeCard({ taskType }: { taskType: TaskType }) {
       router.push(`/tasks/${taskType.id}`);
     } else if (taskType.id === 'photos') {
       router.push('/tasks/photos');
-    } else if (taskType.id === 'ai-chat') {
-      router.push('/tasks/ai-chat');
+    } else if (taskType.id === 'rlhf') {
+      router.push('/tasks/rlhf');
     } else if (taskType.id === 'voice') {
       router.push('/tasks/voice');
     } else if (taskType.id === 'feedback') {
@@ -271,7 +221,7 @@ function TaskTypeCard({ taskType }: { taskType: TaskType }) {
       badgeText={taskType.badgeType}
       iconName={taskType.id === 'image' ? 'image' : 
                taskType.id === 'audio' ? 'audio' : 
-               taskType.id === 'survey' ? 'checkmark-circle' : 'chatbubble-ellipses'}
+               taskType.id === 'survey' ? 'checkmark-circle' : 'chatbubbles'}
       reward={taskType.reward}
       gradientStart={taskType.gradientStart}
       gradientEnd={taskType.gradientEnd}
@@ -616,8 +566,8 @@ function TasksScreen() {
                     router.push(`/tasks/${taskType.id}`);
                   } else if (taskType.id === 'photos') {
                     router.push('/tasks/photos');
-                  } else if (taskType.id === 'ai-chat') {
-                    router.push('/tasks/ai-chat');
+                  } else if (taskType.id === 'rlhf') {
+                    router.push('/tasks/rlhf');
                   } else if (taskType.id === 'voice') {
                     router.push('/tasks/voice');
                   } else if (taskType.id === 'feedback') {

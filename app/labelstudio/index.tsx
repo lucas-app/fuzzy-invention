@@ -11,6 +11,7 @@ import SurveyScreen from './tasks/Survey';
 import GeospatialLabelingScreen from './tasks/GeospatialLabeling';
 import FixGeospatialTasks from './tasks/FixGeospatialTasks';
 import AudioDebugger from './tasks/AudioDebugger';
+import RLHFTasksScreen from './tasks/RLHFTasks';
 
 export default function LabelStudioRouter() {
   const { projectType } = useLocalSearchParams();
@@ -53,6 +54,9 @@ export default function LabelStudioRouter() {
       
     case 'DEBUG':
       return <AudioDebugger />;
+      
+    case 'RLHF':
+      return <RLHFTasksScreen />;
       
     default:
       // Show loading or error state if project type is not recognized
