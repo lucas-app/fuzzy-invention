@@ -1,0 +1,330 @@
+// LabelStudioService.ts
+// Service to interact with Label Studio API
+// Provides functions for fetching tasks, submitting annotations, and handling offline fallbacks
+
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MockService from './MockLabelStudioService';
+import { Database } from '@/types/supabase';
+
+// Constants for API and projects
+export const API_URL = 'https://label-studio.lucas.homes';
+export const API_TOKEN = '501c980772e98d56cab53109683af59c36ce5778';
+export const USE_MOCK_DATA = false;
+export const USE_MOCK_DATA_WHEN_OFFLINE = true;
+
+// Project IDs in Label Studio
+export const PROJECTS = {
+  IMAGE_CLASSIFICATION: 1,
+  AUDIO_CLASSIFICATION: 2,
+  TEXT_SENTIMENT: 3,
+};
+
+// Storage keys for cached tasks
+export const STORAGE_KEYS = {
+  IMAGE_CLASSIFICATION: 'CACHED_IMAGE_TASKS',
+  AUDIO_CLASSIFICATION: 'CACHED_AUDIO_TASKS',
+  TEXT_SENTIMENT: 'CACHED_TEXT_TASKS',
+};
+
+// Helper function to get API token
+const getApiToken = () => '501c980772e98d56cab53109683af59c36ce5778';
+
+// Task interface based on Label Studio API response
+export interface Task {
+  id: number;
+  data: {
+    audio?: string;
+    text?: string;
+    image?: string;
+    question: string;
+    options: Array<{
+      id: string;
+      text: string;
+      value: string;
+    }>;
+  };
+  created_at: string;
+  is_labeled?: boolean;
+}
+
+// Endpoint helpers
+const getTasksEndpoint = (projectId: number) => `/api/projects/${projectId}/tasks/`;
+const ANNOTATIONS_ENDPOINT = (taskId: number) => `/api/tasks/${taskId}/annotations/`;
+
+// Main functions for interacting with Label Studio
+
+/**
+ * Fetches tasks from Label Studio API
+ * Falls back to mock data if server is unavailable
+ */
+export const fetchTasks = async (
+  projectType: string = 'TEXT_SENTIMENT',
+  retries: number = 3,
+  forceRefresh: boolean = false
+): Promise<Task[]> => {
+  try {
+    console.log(`LabelStudioService: Fetching ${projectType} tasks, retries=${retries}`);
+    
+    // If not forcing refresh, try to get cached tasks first
+    if (!forceRefresh) {
+      const cachedTasks = await getCachedTasks(projectType);
+      if (cachedTasks && cachedTasks.length > 0) {
+        console.log(`LabelStudioService: Using cached ${projectType} tasks, count=${cachedTasks.length}`);
+        return cachedTasks;
+      }
+    }
+    
+    // Check if network is available
+    let networkAvailable = true;
+    try {
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        setTimeout(() => reject(new Error('Network request timeout')), 5000);
+      });
+      
+      const fetchPromise = fetch(`${API_URL}/health-check`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const testResponse = await Promise.race([fetchPromise, timeoutPromise]);
+      networkAvailable = testResponse.ok;
+    } catch (e) {
+      console.log('Network appears to be offline, using mock tasks');
+      networkAvailable = false;
+    }
+    
+    // If network is unavailable and mocks are enabled, use mock tasks
+    if (!networkAvailable && USE_MOCK_DATA_WHEN_OFFLINE) {
+      console.log('LabelStudioService: Using mock tasks');
+      const mockTasks = await MockService.getMockTasks(projectType);
+      // Cache the mock tasks
+      if (mockTasks.length > 0) {
+        await saveTasks(mockTasks, projectType);
+      }
+      return mockTasks;
+    }
+    
+    // Get project ID based on project type
+    let projectId: number;
+    switch (projectType) {
+      case 'IMAGE_CLASSIFICATION':
+        projectId = PROJECTS.IMAGE_CLASSIFICATION;
+        break;
+      case 'AUDIO_CLASSIFICATION':
+        projectId = PROJECTS.AUDIO_CLASSIFICATION;
+        break;
+      case 'TEXT_SENTIMENT':
+        projectId = PROJECTS.TEXT_SENTIMENT;
+        break;
+      default:
+        projectId = PROJECTS.TEXT_SENTIMENT;
+    }
+    
+    // Fetch tasks from Label Studio API
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(`${API_URL}${getTasksEndpoint(projectId)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Token ${getApiToken()}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    // Handle API response
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`LabelStudioService: API error response: ${errorText}`);
+      
+      // Retry if there are retries left
+      if (retries > 0) {
+        console.log(`LabelStudioService: Retrying fetch (${retries} retries left)`);
+        return fetchTasks(projectType, retries - 1, forceRefresh);
+      }
+      
+      // If no retries left and mocks are enabled, use mock tasks
+      if (USE_MOCK_DATA) {
+        console.log('LabelStudioService: Failed to fetch from API, using mock tasks');
+        const mockTasks = await MockService.getMockTasks(projectType);
+        // Cache the mock tasks
+        if (mockTasks.length > 0) {
+          await saveTasks(mockTasks, projectType);
+        }
+        return mockTasks;
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    // Parse and process the tasks
+    const tasks = await response.json() as Task[];
+    console.log(`LabelStudioService: Fetched ${tasks.length} tasks from API`);
+    
+    // Filter out any tasks that have already been labeled
+    const unlabeledTasks = tasks.filter(task => !task.is_labeled);
+    console.log(`LabelStudioService: ${unlabeledTasks.length} unlabeled tasks available`);
+    
+    // Cache the unlabeled tasks
+    if (unlabeledTasks.length > 0) {
+      await saveTasks(unlabeledTasks, projectType);
+    }
+    
+    // If no unlabeled tasks, try mock tasks if enabled
+    if (unlabeledTasks.length === 0 && USE_MOCK_DATA) {
+      console.log('LabelStudioService: No unlabeled tasks, using mock tasks');
+      const mockTasks = await MockService.getMockTasks(projectType);
+      // Cache the mock tasks
+      if (mockTasks.length > 0) {
+        await saveTasks(mockTasks, projectType);
+      }
+      return mockTasks;
+    }
+    
+    return unlabeledTasks;
+  } catch (error: unknown) {
+    console.error(`LabelStudioService: Error fetching tasks - ${error instanceof Error ? error.message : String(error)}`);
+    
+    // If there's an error and mock data is enabled, try using mock tasks
+    if (USE_MOCK_DATA) {
+      console.log('LabelStudioService: Error occurred, using mock tasks');
+      const mockTasks = await MockService.getMockTasks(projectType);
+      // Cache the mock tasks
+      if (mockTasks.length > 0) {
+        await saveTasks(mockTasks, projectType);
+      }
+      return mockTasks;
+    }
+    
+    throw error;
+  }
+};
+
+/**
+ * Saves tasks to AsyncStorage for offline use
+ */
+export const saveTasks = async (
+  tasks: Task[],
+  projectType: string = 'TEXT_SENTIMENT'
+): Promise<void> => {
+  try {
+    const storageKey = STORAGE_KEYS[projectType as keyof typeof STORAGE_KEYS] || STORAGE_KEYS.TEXT_SENTIMENT;
+    await AsyncStorage.setItem(storageKey, JSON.stringify(tasks));
+    console.log(`LabelStudioService: Saved ${tasks.length} ${projectType} tasks to cache`);
+  } catch (error: unknown) {
+    console.error(`LabelStudioService: Error saving tasks to cache - ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+/**
+ * Gets cached tasks from AsyncStorage
+ */
+export const getCachedTasks = async (
+  projectType: string = 'TEXT_SENTIMENT'
+): Promise<Task[] | null> => {
+  try {
+    const storageKey = STORAGE_KEYS[projectType as keyof typeof STORAGE_KEYS] || STORAGE_KEYS.TEXT_SENTIMENT;
+    const tasksJson = await AsyncStorage.getItem(storageKey);
+    if (tasksJson) {
+      const tasks = JSON.parse(tasksJson) as Task[];
+      console.log(`LabelStudioService: Retrieved ${tasks.length} ${projectType} tasks from cache`);
+      return tasks;
+    }
+    return null;
+  } catch (error: unknown) {
+    console.error(`LabelStudioService: Error getting cached tasks - ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+};
+
+/**
+ * Submits an annotation to Label Studio API
+ * Falls back to mock submission if server is unavailable
+ */
+export const submitAnnotation = async (
+  taskId: number,
+  value: any,
+  projectType: string = 'TEXT_SENTIMENT'
+): Promise<any> => {
+  try {
+    console.log(`LabelStudioService: Submitting annotation for task ${taskId}`);
+    
+    // Prepare the annotation object
+    const annotation = {
+      result: [{
+        value: value,
+        from_name: 'sentiment',
+        to_name: 'text',
+        type: 'choices',
+      }],
+    };
+    
+    // Check if network is available
+    let networkAvailable = true;
+    try {
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        setTimeout(() => reject(new Error('Network request timeout')), 5000);
+      });
+      
+      const fetchPromise = fetch(`${API_URL}/health-check`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const timeoutId = setTimeout(() => {
+        console.log('Network request timed out');
+        networkAvailable = false;
+      }, 5000);
+      
+      const testResponse = await Promise.race([fetchPromise, timeoutPromise]);
+      clearTimeout(timeoutId);
+      networkAvailable = testResponse.ok;
+    } catch (e) {
+      console.log('Network appears to be offline, using mock submission');
+      networkAvailable = false;
+    }
+    
+    // If network is unavailable and mocks are enabled, use mock submission
+    if (!networkAvailable && USE_MOCK_DATA_WHEN_OFFLINE) {
+      console.log('LabelStudioService: Using mock annotation submission');
+      return MockService.submitMockAnnotation(taskId, projectType, annotation);
+    }
+    
+    // Submit the annotation to Label Studio
+    const response = await fetch(`${API_URL}${ANNOTATIONS_ENDPOINT(taskId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(annotation),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`LabelStudioService: API error response: ${errorText}`);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('LabelStudioService: Annotation submitted successfully:', data);
+    return data;
+  } catch (error: unknown) {
+    console.error(`LabelStudioService: Error submitting annotation - ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
+};
+
+// Export all functions as a default object
+const LabelStudioService = {
+  fetchTasks,
+  saveTasks,
+  getCachedTasks,
+  submitAnnotation
+};
+
+export default LabelStudioService;

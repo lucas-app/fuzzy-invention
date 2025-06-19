@@ -1,5 +1,7 @@
-const { getDefaultConfig } = require('expo/metro-config');
+const { getDefaultConfig } = require('@expo/metro-config');
+const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
+const config = getDefaultConfig(projectRoot);
 
 module.exports = config;

@@ -67,49 +67,94 @@ const IMAGE_TASKS = [
 // Mock audio classification tasks
 const AUDIO_TASKS = [
   {
-    id: 2001,
-    data: {
-      audio: "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/ding.mp4",
-      title: "Bell Sound",
-      question: "What type of sound is this?",
-      options: [
-        {id: "bell", text: "Bell/Chime", value: "bell"},
-        {id: "musical", text: "Musical Instrument", value: "musical"},
-        {id: "voice", text: "Human Voice", value: "voice"},
-        {id: "other", text: "Other", value: "other"}
+    "id": 22,
+    "data": {
+      "audio": "https://file-examples.com/storage/fe8c7eef0c6364f6c9d96b3/2017/11/file_example_MP3_700KB.mp3",
+      "question": "What type of sound is this?",
+      "options": [
+        {
+          "id": "alarm",
+          "text": "Alarm",
+          "value": "alarm"
+        },
+        {
+          "id": "notification",
+          "text": "Notification",
+          "value": "notification"
+        },
+        {
+          "id": "ringtone",
+          "text": "Ringtone",
+          "value": "ringtone"
+        },
+        {
+          "id": "other",
+          "text": "Other",
+          "value": "other"
+        }
       ]
     },
-    created_at: new Date().toISOString()
+    "created_at": "2025-04-18T12:58:14.379Z"
   },
   {
-    id: 2002,
-    data: {
-      audio: "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/animal.mp4",
-      title: "Animal Sound",
-      question: "What animal made this sound?",
-      options: [
-        {id: "dog", text: "Dog", value: "dog"},
-        {id: "cat", text: "Cat", value: "cat"},
-        {id: "bird", text: "Bird", value: "bird"},
-        {id: "other", text: "Other", value: "other"}
+    "id": 23,
+    "data": {
+      "audio": "https://file-examples.com/storage/fe8c7eef0c6364f6c9d96b3/2017/11/file_example_MP3_1MG.mp3",
+      "question": "What environment does this sound represent?",
+      "options": [
+        {
+          "id": "nature",
+          "text": "Nature",
+          "value": "nature"
+        },
+        {
+          "id": "urban",
+          "text": "Urban",
+          "value": "urban"
+        },
+        {
+          "id": "indoor",
+          "text": "Indoor",
+          "value": "indoor"
+        },
+        {
+          "id": "other",
+          "text": "Other",
+          "value": "other"
+        }
       ]
     },
-    created_at: new Date().toISOString()
+    "created_at": "2025-04-18T12:58:14.387Z"
   },
   {
-    id: 2003,
-    data: {
-      audio: "https://storage.googleapis.com/videointelligence-public/google-assistant-sample-data/doorbell.mp4",
-      title: "Home Sound",
-      question: "What home-related sound is this?",
-      options: [
-        {id: "doorbell", text: "Doorbell", value: "doorbell"},
-        {id: "alarm", text: "Alarm", value: "alarm"},
-        {id: "appliance", text: "Appliance", value: "appliance"},
-        {id: "other", text: "Other", value: "other"}
+    "id": 24,
+    "data": {
+      "audio": "https://file-examples.com/storage/fe8c7eef0c6364f6c9d96b3/2017/11/file_example_MP3_2MG.mp3",
+      "question": "What type of vehicle is making this sound?",
+      "options": [
+        {
+          "id": "car",
+          "text": "Car",
+          "value": "car"
+        },
+        {
+          "id": "motorcycle",
+          "text": "Motorcycle",
+          "value": "motorcycle"
+        },
+        {
+          "id": "truck",
+          "text": "Truck",
+          "value": "truck"
+        },
+        {
+          "id": "other",
+          "text": "Other",
+          "value": "other"
+        }
       ]
     },
-    created_at: new Date().toISOString()
+    "created_at": "2025-04-18T12:58:14.387Z"
   }
 ];
 
@@ -226,108 +271,115 @@ const SURVEY_TASKS = [
   }
 ];
 
-/**
- * Get tasks for a specific project type
- * @param {string} projectType - Type of project (TEXT_SENTIMENT, IMAGE_CLASSIFICATION, etc.)
- * @returns {Promise<Array>} - Promise resolving to array of tasks
- */
-export const getMockTasks = async (projectType) => {
-  console.log(`MockLabelStudioService: Getting ${projectType} tasks`);
+// Define functions first
+const getMockTasks = async (projectType) => {
+  console.log(`MockLabelStudioService: Getting mock tasks for ${projectType}`);
+  const STORAGE_KEY = STORAGE_KEYS[projectType];
   
-  // Get from AsyncStorage first (if available)
   try {
-    const STORAGE_KEY = STORAGE_KEYS[projectType];
+    // First try to get from AsyncStorage
     const storedTasks = await AsyncStorage.getItem(STORAGE_KEY);
     
     if (storedTasks) {
-      const parsedTasks = JSON.parse(storedTasks);
-      if (parsedTasks && parsedTasks.length > 0) {
-        console.log(`MockLabelStudioService: Using cached ${projectType} tasks`);
-        return parsedTasks;
+      console.log(`MockLabelStudioService: Using cached tasks for ${projectType}`);
+      const parsed = JSON.parse(storedTasks);
+      if (parsed && parsed.tasks && parsed.tasks.length > 0) {
+        return parsed.tasks;
       }
     }
-  } catch (error) {
-    console.warn('MockLabelStudioService: Error fetching from AsyncStorage:', error);
-  }
-  
-  // If nothing in AsyncStorage, return mock data
-  switch (projectType) {
-    case 'IMAGE_CLASSIFICATION':
-      await saveMockTasks(IMAGE_TASKS, projectType);
-      return IMAGE_TASKS;
-    case 'AUDIO_CLASSIFICATION':
-      await saveMockTasks(AUDIO_TASKS, projectType);
-      return AUDIO_TASKS;
-    case 'TEXT_SENTIMENT':
-      await saveMockTasks(TEXT_TASKS, projectType);
-      return TEXT_TASKS;
-    case 'GEOSPATIAL_LABELING':
-      await saveMockTasks(GEOSPATIAL_TASKS, projectType);
-      return GEOSPATIAL_TASKS;
-    case 'SURVEY':
-      await saveMockTasks(SURVEY_TASKS, projectType);
-      return SURVEY_TASKS;
-    default:
-      return [];
-  }
-};
-
-/**
- * Save mock tasks to AsyncStorage
- * @param {Array} tasks - Tasks to save
- * @param {string} projectType - Type of project
- */
-export const saveMockTasks = async (tasks, projectType) => {
-  try {
-    const STORAGE_KEY = STORAGE_KEYS[projectType];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    console.log(`MockLabelStudioService: Saved ${tasks.length} ${projectType} mock tasks to AsyncStorage`);
-  } catch (error) {
-    console.error('MockLabelStudioService: Error saving to AsyncStorage:', error);
-  }
-};
-
-/**
- * Submit a task annotation
- * @param {number} taskId - ID of the task
- * @param {string} projectType - Type of project
- * @param {Object} annotation - Annotation data
- * @returns {Promise<Object>} - Promise resolving to submission result
- */
-export const submitMockAnnotation = async (taskId, projectType, annotation) => {
-  console.log(`MockLabelStudioService: Submitting annotation for task ${taskId}`);
-  
-  try {
-    // Get completed tasks
-    const completedTasksJson = await AsyncStorage.getItem(STORAGE_KEYS.COMPLETED_TASKS);
-    let completedTasks = completedTasksJson ? JSON.parse(completedTasksJson) : [];
     
-    // Add current task to completed tasks if not already present
-    if (!completedTasks.includes(taskId.toString())) {
-      completedTasks.push(taskId.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.COMPLETED_TASKS, JSON.stringify(completedTasks));
+    // Return the appropriate mock data based on project type
+    console.log(`MockLabelStudioService: Returning default mock tasks for ${projectType}`);
+    let mockData;
+    
+    switch (projectType) {
+      case 'TEXT_SENTIMENT':
+        mockData = TEXT_TASKS;
+        break;
+      case 'IMAGE_CLASSIFICATION':
+        mockData = IMAGE_TASKS;
+        break;
+      case 'AUDIO_CLASSIFICATION':
+        mockData = AUDIO_TASKS;
+        break;
+      case 'SURVEY':
+        mockData = SURVEY_TASKS;
+        break;
+      case 'GEOSPATIAL_LABELING':
+        mockData = GEOSPATIAL_TASKS;
+        break;
+      default:
+        mockData = [];
     }
     
-    // Simulate API response
-    return {
-      id: Date.now(),
-      task_id: taskId,
-      created_by: 'user',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      result: annotation,
-      was_cancelled: false,
-      completed_by: 1,
-      unique_id: `mock-${Date.now()}`
-    };
+    // Save the mock data to AsyncStorage for future use
+    await saveMockTasks(mockData, projectType);
+    
+    return mockData;
   } catch (error) {
-    console.error('MockLabelStudioService: Error submitting annotation:', error);
-    throw error;
+    console.error(`MockLabelStudioService: Error getting mock tasks - ${error.message}`);
+    
+    // Return a default set of tasks based on project type as a last resort
+    switch (projectType) {
+      case 'TEXT_SENTIMENT':
+        return TEXT_TASKS;
+      case 'IMAGE_CLASSIFICATION':
+        return IMAGE_TASKS;
+      case 'AUDIO_CLASSIFICATION':
+        return AUDIO_TASKS;
+      case 'SURVEY':
+        return SURVEY_TASKS;
+      case 'GEOSPATIAL_LABELING':
+        return GEOSPATIAL_TASKS;
+      default:
+        return [];
+    }
   }
 };
 
-export default {
-  getMockTasks,
-  submitMockAnnotation,
-  saveMockTasks
+const saveMockTasks = async (tasks, projectType) => {
+  try {
+    const STORAGE_KEY = STORAGE_KEYS[projectType];
+    
+    // Format the data in the same way as the LabelStudioService
+    const cacheData = {
+      tasks: tasks,
+      timestamp: Date.now()
+    };
+    
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
+    console.log(`MockLabelStudioService: Saved ${tasks.length} mock ${projectType} tasks to AsyncStorage`);
+  } catch (error) {
+    console.error(`MockLabelStudioService: Error saving mock tasks - ${error.message}`);
+  }
 };
+
+const submitMockAnnotation = async (taskId, projectType, annotation) => {
+  try {
+    // Get current completed tasks
+    const completedTasks = await AsyncStorage.getItem(STORAGE_KEYS.COMPLETED_TASKS);
+    const parsedCompletedTasks = completedTasks ? JSON.parse(completedTasks) : [];
+    
+    // Add new task to completed tasks
+    parsedCompletedTasks.push(taskId);
+    
+    // Save updated completed tasks
+    await AsyncStorage.setItem(STORAGE_KEYS.COMPLETED_TASKS, JSON.stringify(parsedCompletedTasks));
+    
+    console.log(`MockLabelStudioService: Submitted annotation for task ${taskId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('MockLabelStudioService: Error submitting annotation:', error);
+    return { success: false, error };
+  }
+};
+
+// Create a single MockLabelStudioService object
+const MockService = {
+  getMockTasks,
+  saveMockTasks,
+  submitMockAnnotation
+};
+
+// Export the service
+export default MockService;

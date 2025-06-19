@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BaseTaskScreen from './BaseTaskScreen';
-import { getCachedTasks } from '../../../services/LabelStudioService';
+import LabelStudioService from '../../../services/LabelStudioService';
 
 // Define types for task and option objects
 interface TaskData {
@@ -49,7 +49,7 @@ const GeospatialLabelingScreen = (props: GeospatialLabelingProps) => {
   useEffect(() => {
     const loadFallbackTasks = async () => {
       try {
-        const cachedTasks = await getCachedTasks('GEOSPATIAL_LABELING');
+        const cachedTasks = await LabelStudioService.getCachedTasks('GEOSPATIAL_LABELING');
         if (cachedTasks && cachedTasks.length > 0) {
           // Filter tasks that have valid image URLs - use local tasks from tasks.json
           const validTasks = cachedTasks.filter(t => 

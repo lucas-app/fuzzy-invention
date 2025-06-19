@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { updateGeospatialTasks, fetchTasks } from '../../../services/LabelStudioService';
+import LabelStudioService from '../../../services/LabelStudioService.service';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+
+// Constants
+const COMPLETED_TASKS_KEY = 'COMPLETED_TASKS';
 
 const FixGeospatialTasks = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -16,16 +19,19 @@ const FixGeospatialTasks = () => {
       setMessage('Updating tasks in Label Studio...');
       
       // Update tasks in Label Studio
-      const success = await updateGeospatialTasks();
+      const success = await LabelStudioService.updateGeospatialTasks();
       
       if (success) {
         setMessage('Tasks updated successfully. Refreshing local cache...');
         
         // Clear the cached tasks
-        await AsyncStorage.removeItem('label_studio_geospatial_tasks');
+        await AsyncStorage.removeItem('CACHED_GEOSPATIAL_TASKS');
+        
+        // Also clear completed tasks to make all tasks visible
+        await AsyncStorage.removeItem(COMPLETED_TASKS_KEY);
         
         // Fetch fresh tasks
-        await fetchTasks('GEOSPATIAL_LABELING');
+        await LabelStudioService.fetchTasks('GEOSPATIAL_LABELING');
         
         setStatus('success');
         setMessage('All tasks updated successfully! You can now use geospatial labeling.');

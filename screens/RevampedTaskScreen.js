@@ -25,9 +25,10 @@ try {
   console.log('Error importing Audio:', error);
 }
 import { mockTasks } from '../assets/mock_tasks';
-import { submitAnnotation, API_URL } from '../services/LabelStudioService';
+import LabelStudioService from '../services/LabelStudioService';
 
 const { width, height } = Dimensions.get('window');
+const API_URL = LabelStudioService.API_URL;
 
 // Storage key for completed tasks
 const COMPLETED_TASKS_KEY = 'COMPLETED_TASKS';

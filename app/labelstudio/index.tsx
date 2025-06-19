@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import task-specific screens
 import AudioClassificationScreen from './tasks/AudioClassification';
@@ -9,9 +10,26 @@ import TextSentimentScreen from './tasks/TextSentiment';
 import SurveyScreen from './tasks/Survey';
 import GeospatialLabelingScreen from './tasks/GeospatialLabeling';
 import FixGeospatialTasks from './tasks/FixGeospatialTasks';
+import AudioDebugger from './tasks/AudioDebugger';
 
 export default function LabelStudioRouter() {
   const { projectType } = useLocalSearchParams();
+  
+  // Clear cached image tasks when navigating to IMAGE_CLASSIFICATION
+  useEffect(() => {
+    const clearImageTasksCache = async () => {
+      if (projectType === 'IMAGE_CLASSIFICATION') {
+        try {
+          await AsyncStorage.removeItem('CACHED_IMAGE_TASKS');
+          console.log('Cleared cached image tasks to use updated project ID (4)');
+        } catch (error) {
+          console.error('Failed to clear image tasks cache:', error);
+        }
+      }
+    };
+    
+    clearImageTasksCache();
+  }, [projectType]);
   
   // Render the appropriate screen based on project type
   switch (projectType) {
@@ -32,6 +50,9 @@ export default function LabelStudioRouter() {
       
     case 'FIX_GEOSPATIAL':
       return <FixGeospatialTasks />;
+      
+    case 'DEBUG':
+      return <AudioDebugger />;
       
     default:
       // Show loading or error state if project type is not recognized

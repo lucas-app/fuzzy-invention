@@ -1,4 +1,12 @@
-export type TaskType = 'image' | 'text' | 'object' | 'airdrop' | 'community' | 'web3';
+// Task type enum corresponding to different Label Studio project types
+export enum TaskType {
+  GEOSPATIAL = 'GEOSPATIAL_LABELING',
+  IMAGE = 'IMAGE_CLASSIFICATION',
+  AUDIO = 'AUDIO_CLASSIFICATION',
+  TEXT = 'TEXT_SENTIMENT',
+  SURVEY = 'SURVEY'
+}
+
 export type TaskDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface BoundingBox {
@@ -13,20 +21,24 @@ export interface ObjectDetection {
   position: BoundingBox;
 }
 
+// Task interface based on Label Studio API
 export interface Task {
-  id: string;
-  type: TaskType;
-  title: string;
-  description: string;
-  image?: string;
-  text?: string;
-  question: string;
-  options: string[];
-  guidelines: string[];
-  difficulty: TaskDifficulty;
-  reward: number;
-  estimatedTime: string;
-  category: string;
+  id: number;
+  data: {
+    audio?: string;
+    text?: string;
+    image?: string;
+    question?: string;
+    options?: Array<{
+      id: string;
+      text: string;
+      value: string;
+    }>;
+    [key: string]: any;
+  };
+  created_at: string;
+  is_labeled?: boolean;
+  completed?: boolean;
 }
 
 export interface TaskValidation {
@@ -35,14 +47,16 @@ export interface TaskValidation {
   keywords: string[];
 }
 
-export interface TaskAnswer {
-  taskId: string;
-  answer: string;
-  isCorrect: boolean;
-  reward: number;
-  timestamp: Date;
+// Task answer submission interface
+export interface TaskSubmission {
+  taskId: number;
+  projectId: number;
+  answer: any;
+  taskType: TaskType;
+  completedAt: string;
 }
 
+// Task statistics interface
 export interface TaskStats {
   totalCompleted: number;
   accuracy: number;
@@ -93,4 +107,11 @@ export interface Web3TaskSubmission {
   reward: number;
   submittedAt: Date;
   reviewedAt?: Date;
+}
+
+// Transaction types that can occur in the wallet
+export enum TransactionType {
+  TASK_REWARD = 'TASK_REWARD',
+  WITHDRAWAL = 'WITHDRAWAL',
+  INVESTMENT = 'INVESTMENT'
 }

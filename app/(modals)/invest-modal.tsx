@@ -208,12 +208,13 @@ export default function InvestModal() {
 
             <Pressable onPress={handleNext} style={styles.actionButton}>
               <LinearGradient
-                colors={['#22D3EE', '#2DD4BF']}
+                colors={['#22D3EE', '#2DD4BF'] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <Text style={styles.actionButtonText}>Continue</Text>
+                style={styles.submitButton}
+              >
+                <Text style={styles.actionButtonText}>Continue</Text>
+              </LinearGradient>
             </Pressable>
 
             <Pressable onPress={() => setSelectedOption(null)} style={styles.backButton}>
@@ -267,16 +268,17 @@ export default function InvestModal() {
               disabled={loading}
             >
               <LinearGradient
-                colors={['#22D3EE', '#2DD4BF']}
+                colors={['#22D3EE', '#2DD4BF'] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.actionButtonText}>Confirm</Text>
-              )}
+                style={styles.submitButton}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.actionButtonText}>Confirm</Text>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
         </Animated.View>
@@ -289,7 +291,7 @@ export default function InvestModal() {
         >
           <View style={styles.successIcon}>
             <LinearGradient
-              colors={['#22D3EE', '#2DD4BF']}
+              colors={['#22D3EE', '#2DD4BF'] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.successIconGradient}
@@ -303,12 +305,13 @@ export default function InvestModal() {
           </Text>
           <Pressable onPress={() => router.back()} style={styles.doneButton}>
             <LinearGradient
-              colors={['#22D3EE', '#2DD4BF']}
+              colors={['#22D3EE', '#2DD4BF'] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <Text style={styles.doneButtonText}>Done</Text>
+              style={styles.submitButton}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </LinearGradient>
           </Pressable>
         </Animated.View>
       )}
@@ -607,5 +610,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  submitButton: {
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  cardBackground: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainCardOverlay: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

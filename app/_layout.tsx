@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, View, StyleSheet } from 'react-native';
+import { useColorScheme, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../store/authStore';
 import { initializeAuthListener } from '../lib/supabase';
@@ -46,42 +46,24 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Show nothing while auth is initializing
-  if (!isAuthInitialized && isLoading) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={styles.container}>
       <View style={styles.container}>
-        <Stack
+        <Slot 
           screenOptions={{
             headerShown: false,
             contentStyle: {
               backgroundColor: colorScheme === 'dark' ? '#000' : '#fff',
             },
-            animation: 'fade',
-            animationDuration: 300,
           }}
-        >
-          <Stack.Screen name="index" options={{ animation: 'fade' }} />
-          <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
-          <Stack.Screen 
-            name="(auth)" 
-            options={{ 
-              animation: 'slide_from_right',
-              animationDuration: 400,
-            }} 
-          />
-          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-          <Stack.Screen 
-            name="(modals)" 
-            options={{ 
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }} 
-          />
-        </Stack>
+        />
+        
+        {(!isAuthInitialized && isLoading) && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        )}
+        
         <StatusBar style="light" />
       </View>
     </GestureHandlerRootView>
@@ -91,5 +73,12 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 });

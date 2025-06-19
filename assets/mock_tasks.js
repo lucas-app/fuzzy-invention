@@ -19,6 +19,62 @@ export const mockTasks = [
     media: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     options: ['Yes', 'No'],
   },
+  {
+    id: '103',
+    type: 'image_classification',
+    question: 'Is this a bird?',
+    media: 'https://images.unsplash.com/photo-1444464666168-49d633b86797?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '104',
+    type: 'image_classification',
+    question: 'Is this a horse?',
+    media: 'https://images.unsplash.com/photo-1553284965-e2815db2e5a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '105',
+    type: 'image_classification',
+    question: 'Is this a fish?',
+    media: 'https://images.unsplash.com/photo-1576671081837-49000212a370?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '106',
+    type: 'image_classification',
+    question: 'Is this a rabbit?',
+    media: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '107',
+    type: 'image_classification',
+    question: 'Is this a turtle?',
+    media: 'https://images.unsplash.com/photo-1518546305927-5a28ddc2a8ac?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '108',
+    type: 'image_classification',
+    question: 'Is this a monkey?',
+    media: 'https://images.unsplash.com/photo-1540573133985-87b6da6d54a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '109',
+    type: 'image_classification',
+    question: 'Is this a bear?',
+    media: 'https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
+  {
+    id: '110',
+    type: 'image_classification',
+    question: 'Is this a lion?',
+    media: 'https://images.unsplash.com/photo-1546182990-dffeafbe841d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    options: ['Yes', 'No'],
+  },
   
   // Text Sentiment Tasks
   {

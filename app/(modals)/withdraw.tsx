@@ -148,7 +148,7 @@ export default function WithdrawModal() {
 
           <Pressable onPress={handleSubmit} disabled={loading}>
             <LinearGradient
-              colors={['#22D3EE', '#2DD4BF']}
+              colors={['#22D3EE', '#2DD4BF'] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[styles.submitButton, loading && styles.submitButtonDisabled]}

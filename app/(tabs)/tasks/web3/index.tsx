@@ -85,9 +85,9 @@ export default function Web3TasksScreen() {
         options={{
           title: 'Web3 Tasks',
           headerStyle: {
-            backgroundColor: '#6C5DD3',
+            backgroundColor: '#FFF9EC',
           },
-          headerTintColor: '#fff',
+          headerTintColor: '#FFB869',
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -96,7 +96,7 @@ export default function Web3TasksScreen() {
               onPress={() => router.back()}
               style={styles.backButton}
             >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color="#FFB869" />
             </TouchableOpacity>
           ),
         }}
@@ -111,15 +111,10 @@ export default function Web3TasksScreen() {
           entering={FadeIn.duration(500)}
           style={styles.headerContainer}
         >
-          <LinearGradient
-            colors={['rgba(108, 93, 211, 0.1)', 'rgba(71, 49, 211, 0.05)']}
-            style={styles.headerGradient}
-          >
-            <Text style={styles.headerTitle}>Choose a Task</Text>
+          <Text style={styles.headerTitle}>Choose a Web3 Task</Text>
             <Text style={styles.headerSubtitle}>
               Complete web3 tasks to earn LUCAS tokens and learn about blockchain technology
             </Text>
-          </LinearGradient>
         </Animated.View>
 
         {tasks.map((task, index) => (
@@ -133,39 +128,30 @@ export default function Web3TasksScreen() {
               onPress={() => handleTaskPress(task.id)}
               activeOpacity={0.9}
             >
-              <LinearGradient
-                colors={['#6C5DD3', '#4731D3']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.taskCardGradient}
-              >
-                {/* Card inner shadow */}
-                <View style={styles.cardInnerHighlight} />
-                
-                {/* Task details */}
+              <View style={styles.accentBar} />
                 <View style={styles.taskInfoContainer}>
                   <View style={styles.taskHeader}>
+                  <Ionicons name="logo-bitcoin" size={22} color="#FFB869" style={{ marginRight: 8 }} />
                     <Text style={styles.taskTitle}>{task.title}</Text>
-                    {renderCategoryLabel(task.category)}
                   </View>
-                  
                   <Text style={styles.taskDescription}>{task.description}</Text>
-                  
                   <View style={styles.taskFooter}>
                     <View style={styles.rewardContainer}>
-                      <Ionicons name="logo-bitcoin" size={16} color="#FFD700" />
-                      <Text style={styles.rewardText}>{task.reward}</Text>
-                    </View>
-                    
-                    <View style={styles.timeContainer}>
-                      <Ionicons name="time-outline" size={16} color="#fff" />
-                      <Text style={styles.timeText}>{task.estimatedTime}</Text>
-                    </View>
+                    <Ionicons name="star" size={16} color="#FFD700" />
+                    <Text style={styles.rewardText}>Earn crypto</Text>
                   </View>
-                  
-                  {renderDifficulty(task.difficulty)}
+                  <TouchableOpacity style={styles.actionButton}>
+                    <LinearGradient
+                      colors={['#FFD700', '#FFB869']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.actionButtonGradient}
+                    >
+                      <Text style={styles.actionButtonText}>Start</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         ))}
@@ -177,7 +163,7 @@ export default function Web3TasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FFF9EC',
   },
   backButton: {
     padding: 8,
@@ -191,90 +177,106 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
-    // Neumorphic shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  headerGradient: {
-    padding: 20,
-    borderRadius: 16,
-    // Inner highlight border
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4731D3',
+    color: '#FFB869',
     marginBottom: 8,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#555',
+    color: '#8A6A1C',
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
+    textAlign: 'center',
   },
   taskCardOuter: {
     marginBottom: 16,
     borderRadius: 16,
-    // Neumorphic shadow
-    shadowColor: '#000',
+    shadowColor: '#FFB869',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 6,
   },
   taskCard: {
+    backgroundColor: '#fff',
     borderRadius: 16,
+    flexDirection: 'row',
     overflow: 'hidden',
+    minHeight: 110,
   },
-  taskCardGradient: {
-    borderRadius: 16,
-    padding: 16,
-    // Inner highlight border
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    // Bottom border for depth
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  cardInnerHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 50,
+  accentBar: {
+    width: 6,
+    backgroundColor: '#FFB869',
     borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    opacity: 0.7,
+    borderBottomLeftRadius: 16,
   },
   taskInfoContainer: {
-    position: 'relative',
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
   },
   taskHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   taskTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#222',
     flex: 1,
-    marginRight: 8,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
-    // Text shadow for depth
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 14,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
+  },
+  taskFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rewardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,215,0,0.10)',
+    padding: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  rewardText: {
+    marginLeft: 4,
+    color: '#FFB869',
+    fontWeight: '600',
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
+  },
+  actionButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
   categoryLabel: {
     paddingHorizontal: 8,
@@ -288,46 +290,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
-  },
-  taskDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 16,
-    lineHeight: 20,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
-  },
-  taskFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  rewardContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    padding: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    // Inner highlight
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  rewardText: {
-    marginLeft: 4,
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
-    marginLeft: 4,
-    color: '#fff',
-    fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
   },
   difficultyContainer: {

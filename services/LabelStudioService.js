@@ -4,14 +4,30 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import tasksJson from '../assets/tasks.json';
-import MockLabelStudioService from './MockLabelStudioService';
+import MockService from './MockLabelStudioService.js';
+import NetInfo from '@react-native-community/netinfo';
 
 // Constants
-const API_URL = 'http://192.168.1.106:9090';
+// Use a configurable API URL that can be updated at runtime
+// Updated to use localhost for development to make it easier to test
+let API_URL = 'http://localhost:9090';  // Changed from 192.168.1.107 to localhost
 
 // Flag to control whether to use mock data when the server is unavailable
 const USE_MOCK_DATA_WHEN_OFFLINE = true;
+
+// Function to update API URL at runtime
+export const setApiUrl = (url) => {
+  if (url && url.trim() !== '') {
+    API_URL = url.trim();
+    console.log(`LabelStudioService: API URL updated to ${API_URL}`);
+    return true;
+  }
+  return false;
+};
+
+// Function to get current API URL
+export const getApiUrl = () => API_URL;
+
 // Force token refresh by adding it as a function that's called each time
 const getApiToken = () => '501c980772e98d56cab53109683af59c36ce5778';
 
@@ -34,251 +50,210 @@ const STORAGE_KEYS = {
   COMPLETED_TASKS: 'COMPLETED_TASKS',
 };
 
+// Mock tasks for offline/testing use
+const mockTasks = {
+  TEXT_SENTIMENT: [
+    {
+      id: 1,
+      data: {
+        text: 'I love this product! It works exactly as described.',
+        options: [
+          { id: 'positive', text: 'Positive', value: 'positive' },
+          { id: 'neutral', text: 'Neutral', value: 'neutral' },
+          { id: 'negative', text: 'Negative', value: 'negative' }
+        ]
+      }
+    }
+  ],
+  IMAGE_CLASSIFICATION: [
+    {
+      id: 101,
+      data: {
+        image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a',
+        question: 'Is this a dog?',
+        options: [
+          { id: 'yes', text: 'Yes', value: 'yes' },
+          { id: 'no', text: 'No', value: 'no' }
+        ]
+      }
+    }
+  ]
+};
+
 // Endpoints
 const getTasksEndpoint = (projectId) => `/api/projects/${projectId}/tasks/`;
 const ANNOTATIONS_ENDPOINT = (taskId) => `/api/tasks/${taskId}/annotations/`;
 const TIMEOUT_MS = 5000; // 5 seconds timeout
 
+// Constants for task management
+const TASK_BATCH_SIZE = 10;
+const MAX_CACHED_TASKS = 50;
+const TASK_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 /**
  * Fetch tasks from Label Studio API
  * @param {string} projectType - Type of project (TEXT_SENTIMENT or IMAGE_CLASSIFICATION)
  * @param {number} retries - Number of retry attempts
+ * @param {boolean} forceRefresh - Whether to force a fresh fetch from the server
  * @returns {Promise<Array>} Array of tasks
  */
-/**
- * Update geospatial tasks in Label Studio with working image URLs
- * @returns {Promise<boolean>} Success status
- */
-export const updateGeospatialTasks = async () => {
-  const API_TOKEN = getApiToken();
-  const projectId = PROJECTS.GEOSPATIAL_LABELING;
-  const TASKS_ENDPOINT = getTasksEndpoint(projectId);
-  
-  try {
-    console.log('LabelStudioService: Updating geospatial tasks with working image URLs...');
-    
-    // Working image URLs from imgur
-    const workingImageUrls = [
-      { id: 28, image: 'https://i.imgur.com/pMZcCuH.jpg', location_name: 'Agricultural Land' },
-      { id: 29, image: 'https://i.imgur.com/8kcsS6G.jpg', location_name: 'Mountain Region' },
-      { id: 30, image: 'https://i.imgur.com/qYYEcnE.jpg', location_name: 'Desert Region' }
-    ];
-    
-    // Update each task
-    for (const task of workingImageUrls) {
-      const response = await fetch(`${API_URL}/api/tasks/${task.id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Token ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            image: task.image,
-            location_name: task.location_name,
-            question: 'What is the most prominent feature in this map?',
-            options: [
-              { id: 'building', text: 'Buildings', value: 'building' },
-              { id: 'road', text: 'Roads', value: 'road' },
-              { id: 'water', text: 'Water', value: 'water' },
-              { id: 'vegetation', text: 'Vegetation', value: 'vegetation' }
-            ]
-          }
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`LabelStudioService: Error updating task ${task.id}: ${errorText}`);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      console.log(`LabelStudioService: Successfully updated task ${task.id} with working image URL`);
-    }
-    
-    console.log('LabelStudioService: All geospatial tasks updated successfully');
-    return true;
-  } catch (error) {
-    console.error(`LabelStudioService: Error updating geospatial tasks - ${error.message}`);
-    return false;
-  }
-};
-
-export const fetchTasks = async (projectType = 'TEXT_SENTIMENT', retries = 3) => {
+export const fetchTasks = async (projectType, retries = 3, forceRefresh = false) => {
   const projectId = PROJECTS[projectType];
   const TASKS_ENDPOINT = getTasksEndpoint(projectId);
   const STORAGE_KEY = STORAGE_KEYS[projectType];
+  const API_TOKEN = getApiToken();
   
   console.log(`LabelStudioService: Fetching ${projectType} tasks from API...`);
-  console.log(`LabelStudioService: Project ID for ${projectType} is ${projectId}`);
   
-  // For SURVEY project type, use the local tasks.json file directly
-  if (projectType === 'SURVEY') {
+  // First try to get cached tasks if not forcing refresh
+  if (!forceRefresh) {
     try {
-      console.log('LabelStudioService: Using local survey tasks from tasks.json');
-      const surveyTasks = tasksJson.filter(task => task.id >= 100 && task.id < 200);
-      
-      if (surveyTasks && surveyTasks.length > 0) {
-        console.log(`LabelStudioService: Found ${surveyTasks.length} survey tasks`);
-        return surveyTasks;
-      } else {
-        console.log('LabelStudioService: No survey tasks found in tasks.json');
-        return [];
+      const cachedData = await AsyncStorage.getItem(STORAGE_KEY);
+      if (cachedData) {
+        const { tasks, timestamp } = JSON.parse(cachedData);
+        const isExpired = Date.now() - timestamp > TASK_EXPIRY_TIME;
+        
+        if (tasks && tasks.length > 0 && !isExpired) {
+          console.log(`LabelStudioService: Using cached ${projectType} tasks`);
+          return tasks;
+        }
       }
     } catch (error) {
-      console.error(`LabelStudioService: Error loading survey tasks - ${error.message}`);
-      return [];
+      console.warn('LabelStudioService: Error fetching from AsyncStorage:', error);
     }
   }
-  console.log(`LabelStudioService: API URL: ${API_URL}${TASKS_ENDPOINT}`);
-  console.log(`LabelStudioService: Project ID: ${projectId}`);
-  const API_TOKEN = getApiToken(); // Get fresh token each time
-  console.log(`LabelStudioService: API Token: ${API_TOKEN.substring(0, 5)}...${API_TOKEN.substring(API_TOKEN.length - 5)}`);
-  let lastError = null;
 
-  for (let i = 0; i < retries; i++) {
+  // Check network connectivity
+  const networkState = await NetInfo.fetch();
+  const isConnected = networkState.isConnected && networkState.isInternetReachable;
+  
+  // If offline and configured to use mock data, use mock data immediately
+  if (!isConnected && USE_MOCK_DATA_WHEN_OFFLINE) {
+    console.log('LabelStudioService: Device is offline, using mock data');
     try {
-      // We'll check for cached tasks only after API fails
-      // This ensures we always try to get fresh data first
-
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const mockTasks = await MockService.getMockTasks(projectType);
       
-      console.log(`LabelStudioService: Attempt ${i + 1}/${retries} - Fetching from ${API_URL}${TASKS_ENDPOINT}`);
-
-      // Fetch tasks from Label Studio API
-      const response = await fetch(`${API_URL}${TASKS_ENDPOINT}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      console.log(`LabelStudioService: Response status: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`LabelStudioService: API error response: ${errorText}`);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('LabelStudioService: Fetched data:', data);
-
-      // Handle pagination: Extract tasks array
-      const tasksArray = Array.isArray(data) ? data : data.results || [];
-      console.log('LabelStudioService: Extracted tasks:', tasksArray);
-
-      // Log some image URLs to debug issue
-      if (projectType === 'IMAGE_CLASSIFICATION') {
-        console.log('Image classification data:');
-        tasksArray.forEach((task, idx) => {
-          console.log(`Task ${idx} (ID: ${task.id}) image: ${task.data?.image}`);
-        });
+      // Save to cache for future use
+      try {
+        const cacheData = {
+          tasks: mockTasks.slice(0, MAX_CACHED_TASKS),
+          timestamp: Date.now()
+        };
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
+        console.log(`LabelStudioService: Cached ${mockTasks.length} ${projectType} mock tasks`);
+      } catch (cacheError) {
+        console.warn('LabelStudioService: Error saving mock tasks to cache:', cacheError);
       }
       
-      // Optimize storage: Store only essential fields
-      const slimTasks = tasksArray.map(task => {
-        // Preprocess image URLs if needed
-        let imageUrl = task.data?.image;
+      return mockTasks;
+    } catch (mockError) {
+      console.error('LabelStudioService: Error getting mock data:', mockError);
+      return []; // Return empty array if even mock data fails
+    }
+  }
+
+  // If this is audio classification or survey, try to use mock data first
+  if ((projectType === 'AUDIO_CLASSIFICATION' || projectType === 'SURVEY') && USE_MOCK_DATA_WHEN_OFFLINE) {
+    try {
+      console.log(`LabelStudioService: Using mock data for ${projectType}`);
+      const mockTasks = await MockService.getMockTasks(projectType);
+      if (mockTasks && mockTasks.length > 0) {
+        // Save to cache
+        try {
+          const cacheData = {
+            tasks: mockTasks.slice(0, MAX_CACHED_TASKS),
+            timestamp: Date.now()
+          };
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
+          console.log(`LabelStudioService: Cached ${mockTasks.length} ${projectType} mock tasks`);
+        } catch (cacheError) {
+          console.warn('LabelStudioService: Error saving mock tasks to cache:', cacheError);
+        }
+        return mockTasks;
+      }
+    } catch (mockError) {
+      console.warn('LabelStudioService: Error getting mock tasks:', mockError);
+    }
+  }
+
+  // Fetch from server with retries only if we're connected
+  if (isConnected) {
+    let lastError = null;
+    let tasks = [];
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
         
-        // Fix image URL issues - ensure full URL and proper CORS headers
-        if (imageUrl && projectType === 'IMAGE_CLASSIFICATION') {
-          // If it's a relative URL, make it absolute using the Label Studio server
-          if (imageUrl.startsWith('/')) {
-            imageUrl = `${API_URL}${imageUrl}`;
-            console.log(`Converted relative image URL to: ${imageUrl}`);
+        console.log(`LabelStudioService: Attempt ${i + 1}/${retries} - Fetching from ${API_URL}${TASKS_ENDPOINT}`);
+
+        const response = await fetch(`${API_URL}${TASKS_ENDPOINT}?page_size=${TASK_BATCH_SIZE}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Token ${API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`LabelStudioService: API error response (${response.status}): ${errorText}`);
+          
+          if (response.status === 401) {
+            throw new Error('Invalid API token. Please check your Label Studio configuration.');
           }
           
-          // If it's a local file or using data:, consider providing a public URL
-          if (imageUrl.startsWith('data:') || imageUrl.startsWith('file:')) {
-            // Fallback to a reliable image service if data: or file: URLs
-            console.log(`Replacing problematic image URL: ${imageUrl.substring(0, 30)}...`);
-            imageUrl = `https://storage.googleapis.com/generative-language-understanding/images/animals/dog${task.id % 5}.jpg`;
-          }
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        const data = await response.json();
+        tasks = Array.isArray(data) ? data : data.results || [];
+
+        // If we got tasks, break the retry loop
+        if (tasks.length > 0) {
+          break;
+        }
+      } catch (error) {
+        console.error(`LabelStudioService: Attempt ${i + 1} failed:`, error);
+        lastError = error;
+        
+        // Only retry if it's not the last attempt
+        if (i < retries - 1) {
+          continue;
         }
         
-        return {
-          id: task.id,
-          created_at: task.created_at,
-          data: {
-            // Include all possible data fields based on project type
-            link: task.data?.link,
-            str: task.data?.str,
-            text: task.data?.text,
-            title: task.data?.title,
-            image: imageUrl,
-            audio: task.data?.audio,
-            question: task.data?.question,
-            description: task.data?.description,
-            // For geospatial labeling, use map_image if available, otherwise use image
-            map_image: task.data?.map_image || (projectType === 'GEOSPATIAL_LABELING' ? task.data?.image : undefined),
-            location_name: task.data?.location_name,
-            options: task.data?.options
-          },
-        };
-      });
-
-      // Save to AsyncStorage with the correct project type
-      await saveTasks(slimTasks, projectType);
-      
-      // For image classification, return the slimTasks with fixed URLs instead of original
-      if (projectType === 'IMAGE_CLASSIFICATION') {
-        console.log(`Returning ${slimTasks.length} processed image tasks`);
-        return slimTasks;
-      }
-
-      return tasksArray;
-    } catch (error) {
-      lastError = error;
-      console.error(`LabelStudioService: Attempt ${i + 1} failed:`, error.message);
-
-      // If AbortController error (timeout), provide specific message
-      if (error.name === 'AbortError') {
-        console.warn('LabelStudioService: Request timed out after 5 seconds');
-      }
-
-      if (i === retries - 1) {
-        console.warn(`LabelStudioService: All retries failed, attempting to use cached ${projectType} tasks`);
-        const cachedTasks = await getCachedTasks(projectType);
-        if (cachedTasks && cachedTasks.length > 0) {
-          console.log(`LabelStudioService: Using cached ${projectType} tasks`);
-          return cachedTasks;
-        }
-        
-        // If USE_MOCK_DATA_WHEN_OFFLINE is true and we have no cached tasks, use mock data
+        // If all retries failed, try mock data
         if (USE_MOCK_DATA_WHEN_OFFLINE) {
-          console.log(`LabelStudioService: No cached tasks, using mock ${projectType} tasks`);
-          return MockLabelStudioService.getMockTasks(projectType);
-        }
-
-        console.log(`LabelStudioService: Using local fallback ${projectType} tasks`);
-        // Return appropriate fallback tasks based on project type
-        if (projectType === 'IMAGE_CLASSIFICATION') {
-          console.log('LabelStudioService: Using image classification fallback tasks');
-          return require('../assets/image_classification_tasks.json');
-        } else if (projectType === 'AUDIO_CLASSIFICATION') {
-          console.log('LabelStudioService: Using audio classification fallback tasks');
-          return require('../assets/audio_classification_tasks.json');
-        } else if (projectType === 'GEOSPATIAL_LABELING') {
-          console.log('LabelStudioService: Using geospatial labeling fallback tasks');
-          return tasksJson.filter(task => task.data && task.data.image);
-        } else {
-          console.log('LabelStudioService: Using text sentiment fallback tasks');
-          return tasksJson.filter(task => task.data && task.data.text); // Default to text sentiment tasks
+          console.log('LabelStudioService: All retries failed, falling back to mock data');
+          tasks = await MockService.getMockTasks(projectType);
         }
       }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-  }
 
-  throw lastError;
+    // Save tasks to cache with timestamp
+    if (tasks.length > 0) {
+      try {
+        const cacheData = {
+          tasks: tasks.slice(0, MAX_CACHED_TASKS),
+          timestamp: Date.now()
+        };
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
+        console.log(`LabelStudioService: Cached ${tasks.length} ${projectType} tasks`);
+      } catch (error) {
+        console.warn('LabelStudioService: Error saving to cache:', error);
+      }
+    }
+
+    return tasks;
+  } else {
+    // As a last resort for offline mode, return mock data
+    console.log('LabelStudioService: Offline, falling back to mock data');
+    return await MockService.getMockTasks(projectType);
+  }
 };
 
 /**
@@ -361,7 +336,7 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
             to_name: 'text',
             type: 'choices',
             value: {
-              choices: [value]
+              choices: [value].filter(Boolean)
             }
           }
         ]
@@ -375,7 +350,7 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
             to_name: 'image',
             type: 'choices',
             value: {
-              choices: [value]
+              choices: [value].filter(Boolean)
             }
           }
         ]
@@ -389,7 +364,7 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
             to_name: 'audio',
             type: 'choices',
             value: {
-              choices: [value]
+              choices: [value].filter(Boolean)
             }
           }
         ]
@@ -397,13 +372,12 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
     } else if (projectType === 'SURVEY') {
       // For surveys, the value parameter is expected to be the complete annotation object
       // with all questions and responses already formatted
-      annotation = {
-        task: taskId,
-        result: value.result || []
-      };
-      
-      // If the value doesn't have the expected format, create a fallback
-      if (!value.result) {
+      if (value && typeof value === 'object' && value.result) {
+        annotation = {
+          task: taskId,
+          result: Array.isArray(value.result) ? value.result : []
+        };
+      } else {
         console.warn('LabelStudioService: Survey annotation format is incorrect, using fallback');
         annotation = {
           task: taskId,
@@ -428,7 +402,40 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
             to_name: 'geo_image',
             type: 'choices',
             value: {
-              choices: [value]
+              choices: [value].filter(Boolean)
+            }
+          }
+        ]
+      };
+    } else {
+      // Default case for any other project type
+      annotation = {
+        task: taskId,
+        result: [
+          {
+            from_name: 'default',
+            to_name: 'task',
+            type: 'choices',
+            value: {
+              choices: [typeof value === 'string' ? value : 'completed']
+            }
+          }
+        ]
+      };
+    }
+    
+    // Ensure annotation has valid result
+    if (!annotation || !annotation.result || !Array.isArray(annotation.result)) {
+      console.warn('LabelStudioService: Invalid annotation format, creating default');
+      annotation = {
+        task: taskId,
+        result: [
+          {
+            from_name: 'default',
+            to_name: 'task',
+            type: 'choices',
+            value: {
+              choices: ['completed']
             }
           }
         ]
@@ -451,7 +458,7 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
     // If network is unavailable and mocks are enabled, use mock submission
     if (!networkAvailable && USE_MOCK_DATA_WHEN_OFFLINE) {
       console.log('LabelStudioService: Using mock annotation submission');
-      return MockLabelStudioService.submitMockAnnotation(taskId, projectType, annotation);
+      return MockService.submitMockAnnotation(taskId, projectType, annotation);
     }
     
     // Submit the annotation to Label Studio
@@ -477,4 +484,381 @@ export const submitAnnotation = async (taskId, value, projectType = 'TEXT_SENTIM
     console.error(`LabelStudioService: Error submitting annotation - ${error.message}`);
     throw error;
   }
+};
+
+/**
+ * Create image classification tasks in Label Studio
+ * @returns {Promise<boolean>} Success status
+ */
+export const createImageClassificationTasks = async () => {
+  const API_TOKEN = getApiToken();
+  const projectId = PROJECTS.IMAGE_CLASSIFICATION;
+  const TASKS_ENDPOINT = getTasksEndpoint(projectId);
+  
+  try {
+    console.log('LabelStudioService: Creating image classification tasks...');
+    
+    // Image tasks to create
+    const imageTasks = [
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Does this image contain a dog?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a cat?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1444464666168-49d633b86797?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a bird?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1553284965-e2815db2e5a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a horse?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1576671081837-49000212a370?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a fish?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a rabbit?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1518546305927-5a28ddc2a8ac?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a turtle?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1540573133985-87b6da6d54a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a monkey?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a bear?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      },
+      {
+        data: {
+          image: 'https://images.unsplash.com/photo-1546182990-dffeafbe841d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+          question: 'Is this a lion?',
+          options: [
+            { id: 'yes', text: 'Yes', value: 'yes' },
+            { id: 'no', text: 'No', value: 'no' }
+          ]
+        }
+      }
+    ];
+    
+    // Create each task in Label Studio
+    for (const task of imageTasks) {
+      const response = await fetch(`${API_URL}${TASKS_ENDPOINT}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(task),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`LabelStudioService: Error creating task: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+      
+      const createdTask = await response.json();
+      console.log(`LabelStudioService: Created task ${createdTask.id} successfully`);
+    }
+    
+    console.log('LabelStudioService: All image classification tasks created successfully');
+    return true;
+  } catch (error) {
+    console.error(`LabelStudioService: Error creating image classification tasks - ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Update geospatial tasks in Label Studio with working image URLs
+ * @returns {Promise<boolean>} Success status
+ */
+export const updateGeospatialTasks = async () => {
+  const API_TOKEN = getApiToken();
+  const projectId = PROJECTS.GEOSPATIAL_LABELING;
+  const TASKS_ENDPOINT = getTasksEndpoint(projectId);
+  
+  try {
+    console.log('LabelStudioService: Updating geospatial tasks with working image URLs...');
+    
+    // Working image URLs from imgur
+    const workingImageUrls = [
+      { id: 28, image: 'https://i.imgur.com/pMZcCuH.jpg', location_name: 'Agricultural Land' },
+      { id: 29, image: 'https://i.imgur.com/8kcsS6G.jpg', location_name: 'Mountain Region' },
+      { id: 30, image: 'https://i.imgur.com/qYYEcnE.jpg', location_name: 'Desert Region' }
+    ];
+    
+    // Update each task
+    for (const task of workingImageUrls) {
+      const response = await fetch(`${API_URL}/api/tasks/${task.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Token ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            image: task.image,
+            location_name: task.location_name,
+            question: 'What is the most prominent feature in this map?',
+            options: [
+              { id: 'building', text: 'Buildings', value: 'building' },
+              { id: 'road', text: 'Roads', value: 'road' },
+              { id: 'water', text: 'Water', value: 'water' },
+              { id: 'vegetation', text: 'Vegetation', value: 'vegetation' }
+            ]
+          }
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`LabelStudioService: Error updating task ${task.id}: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+      
+      console.log(`LabelStudioService: Successfully updated task ${task.id} with working image URL`);
+    }
+    
+    console.log('LabelStudioService: All geospatial tasks updated successfully');
+    return true;
+  } catch (error) {
+    console.error(`LabelStudioService: Error updating geospatial tasks - ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Create audio classification tasks in Label Studio
+ * @returns {Promise<boolean>} Success status
+ */
+export const createAudioClassificationTasks = async () => {
+  const API_TOKEN = getApiToken();
+  const projectId = PROJECTS.AUDIO_CLASSIFICATION;
+  const TASKS_ENDPOINT = getTasksEndpoint(projectId);
+  
+  try {
+    console.log('LabelStudioService: Creating audio classification tasks...');
+    
+    // Audio tasks to create - using reliable audio sources with CORS enabled
+    const audioTasks = [
+      {
+        data: {
+          audio: 'https://assets.mixkit.co/sfx/preview/mixkit-doorbell-single-press-333.mp3',
+          question: 'What type of sound is this?',
+          options: [
+            { id: 'doorbell', text: 'Doorbell', value: 'doorbell' },
+            { id: 'alarm', text: 'Alarm', value: 'alarm' },
+            { id: 'notification', text: 'Notification', value: 'notification' },
+            { id: 'other', text: 'Other', value: 'other' }
+          ]
+        }
+      },
+      {
+        data: {
+          audio: 'https://assets.mixkit.co/sfx/preview/mixkit-dog-barking-twice-1.mp3',
+          question: 'Which animal is making this sound?',
+          options: [
+            { id: 'dog', text: 'Dog', value: 'dog' },
+            { id: 'cat', text: 'Cat', value: 'cat' },
+            { id: 'bird', text: 'Bird', value: 'bird' },
+            { id: 'other', text: 'Other', value: 'other' }
+          ]
+        }
+      },
+      {
+        data: {
+          audio: 'https://assets.mixkit.co/sfx/preview/mixkit-metal-hammer-hit-833.mp3',
+          question: 'What is the most likely source of this sound?',
+          options: [
+            { id: 'construction', text: 'Construction', value: 'construction' },
+            { id: 'household', text: 'Household', value: 'household' },
+            { id: 'industrial', text: 'Industrial', value: 'industrial' },
+            { id: 'other', text: 'Other', value: 'other' }
+          ]
+        }
+      },
+      {
+        data: {
+          audio: 'https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-game-over-213.mp3',
+          question: 'What type of sound effect is this?',
+          options: [
+            { id: 'videogame', text: 'Video Game', value: 'videogame' },
+            { id: 'movie', text: 'Movie', value: 'movie' },
+            { id: 'music', text: 'Music', value: 'music' },
+            { id: 'other', text: 'Other', value: 'other' }
+          ]
+        }
+      },
+      {
+        data: {
+          audio: 'https://assets.mixkit.co/sfx/preview/mixkit-thunder-rumble-1295.mp3',
+          question: 'What weather phenomenon does this sound represent?',
+          options: [
+            { id: 'thunder', text: 'Thunder', value: 'thunder' },
+            { id: 'rain', text: 'Rain', value: 'rain' },
+            { id: 'wind', text: 'Wind', value: 'wind' },
+            { id: 'other', text: 'Other', value: 'other' }
+          ]
+        }
+      }
+    ];
+    
+    // Create each task in Label Studio
+    let createdCount = 0;
+    for (const task of audioTasks) {
+      try {
+        const response = await fetch(`${API_URL}${TASKS_ENDPOINT}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(task),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`LabelStudioService: Error creating audio task: ${errorText}`);
+          continue;
+        }
+        
+        const createdTask = await response.json();
+        console.log(`LabelStudioService: Created audio task ${createdTask.id} successfully`);
+        createdCount++;
+      } catch (taskError) {
+        console.error(`LabelStudioService: Error creating audio task: ${taskError.message}`);
+      }
+    }
+    
+    console.log(`LabelStudioService: Created ${createdCount}/${audioTasks.length} audio classification tasks successfully`);
+    
+    // Force a refresh of the audio tasks in cache
+    if (createdCount > 0) {
+      await fetchTasks('AUDIO_CLASSIFICATION', 1, true);
+    }
+    
+    return createdCount > 0;
+  } catch (error) {
+    console.error(`LabelStudioService: Error creating audio classification tasks - ${error.message}`);
+    return false;
+  }
+};
+
+export function transformAnnotationForSubmission(result) {
+  try {
+    console.log('Transforming annotation for submission:', JSON.stringify(result, null, 2));
+    
+    const { questionResults, formData } = result;
+    
+    // Ensure questionResults is an array and not empty
+    if (!Array.isArray(questionResults) || questionResults.length === 0) {
+      console.error('Invalid questionResults format:', questionResults);
+      return null;
+    }
+    
+    const annotations = questionResults.map(qr => {
+      // Ensure qr and qr.options are valid before accessing properties
+      if (!qr || !Array.isArray(qr.options) || qr.options.length === 0) {
+        console.error('Invalid question result format:', qr);
+        return null;
+      }
+      
+      const selectedOption = qr.options.find(opt => opt.selected);
+      
+      if (!selectedOption) {
+        console.error('No selected option found in:', qr.options);
+        return null;
+      }
+      
+      return {
+        id: qr.id,
+        selectedAnswer: selectedOption.value,
+        confidence: selectedOption.confidence || 1,
+      };
+    }).filter(annotation => annotation !== null); // Filter out any null annotations
+    
+    return {
+      annotations,
+      formData,
+    };
+  } catch (error) {
+    console.error('Error transforming annotation:', error);
+    return null;
+  }
+}
+
+// Export all functions as a default object
+export default {
+  fetchTasks,
+  saveTasks,
+  getCachedTasks,
+  submitAnnotation,
+  createImageClassificationTasks,
+  createAudioClassificationTasks,
+  updateGeospatialTasks,
+  getApiUrl,
+  setApiUrl
 };

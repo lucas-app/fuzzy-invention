@@ -1,9 +1,13 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, RefreshControl } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, RefreshControl, TextInput, FlatList, Dimensions, TouchableOpacity } from 'react-native';
 import { Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInRight } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import type { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 const MOCK_LEADERBOARD = [
   {
@@ -95,17 +99,66 @@ const COMMUNITY_POSTS = [
   },
 ];
 
+const STORIES = [
+  {
+    id: '1',
+    user: {
+      username: 'cryptomaster',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde',
+    },
+    type: 'achievement',
+    title: 'Reached Diamond!',
+  },
+  {
+    id: '2',
+    user: {
+      username: 'aiexpert',
+      avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36',
+    },
+    type: 'milestone',
+    title: '$5K Earned',
+  },
+];
+
+const TRENDING_TOPICS = [
+  { id: '1', name: 'AI Ethics', count: 324 },
+  { id: '2', name: 'Data Quality', count: 256 },
+  { id: '3', name: 'Earnings Tips', count: 198 },
+];
+
+const CHALLENGES = [
+  {
+    id: '1',
+    title: 'Speed Champion',
+    description: 'Label 100 images in under 1 hour',
+    reward: 50,
+    participants: 234,
+    endTime: '2d 5h',
+    type: 'solo',
+  },
+  {
+    id: '2',
+    title: 'Team Quest',
+    description: 'Collaborate to label 1000 audio files',
+    reward: 100,
+    participants: 56,
+    endTime: '5d',
+    type: 'team',
+  },
+];
+
+// Define the colors type to match expo-linear-gradient's requirements
+type GradientColors = [string, string];
+
 function LeaderboardSection() {
   const [filter, setFilter] = useState('global');
 
-  const getTierColor = (tier: string) => {
+  const getTierColor = (tier: string): readonly [string, string] => {
     switch (tier) {
-      case 'gold':
-        return ['#FFD700', '#FFA500'];
-      case 'silver':
-        return ['#C0C0C0', '#A9A9A9'];
-      default:
-        return ['#CD7F32', '#8B4513'];
+      case 'diamond': return ['#B2F5EA', '#4FD1C5'] as const;
+      case 'gold': return ['#FBD38D', '#F6AD55'] as const;
+      case 'silver': return ['#CBD5E0', '#A0AEC0'] as const;
+      default: return ['#BEE3F8', '#63B3ED'] as const;
     }
   };
 
@@ -180,7 +233,7 @@ function QuestsSection() {
       {ACTIVE_QUESTS.map((quest) => (
         <View key={quest.id} style={styles.questCard}>
           <LinearGradient
-            colors={['rgba(34,211,238,0.1)', 'rgba(45,212,191,0.1)']}
+            colors={['rgba(34,211,238,0.1)', 'rgba(45,212,191,0.1)'] as const}
             style={styles.questGradient}
           />
           
@@ -224,15 +277,145 @@ function QuestsSection() {
   );
 }
 
+function StoriesSection() {
+  const storyGradientColors = ['#FF6B6B', '#4ECDC4'] as const;
+  return (
+    <View style={styles.storiesContainer}>
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={STORIES}
+        renderItem={({ item }) => (
+          <Pressable style={styles.storyItem}>
+            <LinearGradient
+              colors={storyGradientColors}
+              style={styles.storyGradient}
+            >
+              <Image source={{ uri: item.user.avatar }} style={styles.storyAvatar} />
+            </LinearGradient>
+            <Text style={styles.storyUsername} numberOfLines={1}>
+              {item.user.username}
+            </Text>
+          </Pressable>
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.storiesList}
+      />
+    </View>
+  );
+}
+
+function SearchBar() {
+  return (
+    <View style={styles.searchContainer}>
+      <Ionicons name="search" size={20} color="#64748b" />
+      <TextInput
+        placeholder="Search posts, users, or topics..."
+        style={styles.searchInput}
+        placeholderTextColor="#64748b"
+      />
+      <Pressable style={styles.filterButton}>
+        <Ionicons name="filter" size={20} color="#2563eb" />
+      </Pressable>
+    </View>
+  );
+}
+
+function TrendingTopics() {
+  return (
+    <View style={styles.trendingContainer}>
+      <Text style={styles.trendingTitle}>Trending Topics</Text>
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={TRENDING_TOPICS}
+        renderItem={({ item }) => (
+          <Pressable style={styles.topicChip}>
+            <Text style={styles.topicName}>#{item.name}</Text>
+            <Text style={styles.topicCount}>{item.count}</Text>
+          </Pressable>
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.topicsList}
+      />
+    </View>
+  );
+}
+
+function ChallengesSection() {
+  const teamGradientColors = ['#4F46E5', '#7C3AED'] as const;
+  const soloGradientColors = ['#2563EB', '#3B82F6'] as const;
+  
+  return (
+    <View style={styles.challengesContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>🏆 Active Challenges</Text>
+        <Link href={{ pathname: '/(tabs)/challenges' } as any} asChild>
+          <Pressable style={styles.seeAllButton}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </Pressable>
+        </Link>
+      </View>
+      {CHALLENGES.map((challenge) => (
+        <Animated.View
+          key={challenge.id}
+          entering={FadeInRight.delay(200)}
+          style={styles.challengeCard}
+        >
+          <LinearGradient
+            colors={challenge.type === 'team' ? teamGradientColors : soloGradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.challengeGradient}
+          >
+            <View style={styles.challengeContent}>
+              <View style={styles.challengeHeader}>
+                <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                <View style={styles.challengeType}>
+                  <MaterialCommunityIcons
+                    name={challenge.type === 'team' ? 'account-group' : 'account'}
+                    size={16}
+                    color="#fff"
+                  />
+                  <Text style={styles.challengeTypeText}>
+                    {challenge.type === 'team' ? 'Team' : 'Solo'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.challengeDescription}>{challenge.description}</Text>
+              <View style={styles.challengeStats}>
+                <View style={styles.challengeStat}>
+                  <Ionicons name="people" size={16} color="#fff" />
+                  <Text style={styles.challengeStatText}>{challenge.participants}</Text>
+                </View>
+                <View style={styles.challengeStat}>
+                  <Ionicons name="time" size={16} color="#fff" />
+                  <Text style={styles.challengeStatText}>{challenge.endTime}</Text>
+                </View>
+                <View style={styles.challengeStat}>
+                  <Ionicons name="gift" size={16} color="#fff" />
+                  <Text style={styles.challengeStatText}>${challenge.reward}</Text>
+                </View>
+              </View>
+              <Pressable style={styles.joinButton}>
+                <Text style={styles.joinButtonText}>Join Challenge</Text>
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
 function CommunitySection() {
   return (
-    <View style={styles.section}>
+    <View style={styles.communityContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>🌟 Community</Text>
-        <Link href="/community/new-post" asChild>
+        <Text style={styles.sectionTitle}>Community Posts</Text>
+        <Link href={{ pathname: '/(tabs)/community/new-post' } as any} asChild>
           <Pressable style={styles.newPostButton}>
-            <Ionicons name="add-circle" size={20} color="#2563eb" />
-            <Text style={styles.newPostButtonText}>Share</Text>
+            <Text style={styles.newPostText}>New Post</Text>
           </Pressable>
         </Link>
       </View>
@@ -268,28 +451,100 @@ function CommunitySection() {
   );
 }
 
+type StickyHeaderProps = { onSearch?: (text: string) => void };
+function StickyHeader({ onSearch = () => {} }: StickyHeaderProps) {
+  return (
+    <View style={styles.stickyHeader}>
+      <View style={styles.headerSearchBar}>
+        <Ionicons name="search" size={20} color="#64748b" style={{ marginRight: 8 }} />
+        <TextInput
+          placeholder="Search community..."
+          style={styles.headerSearchInput}
+          placeholderTextColor="#64748b"
+          onChangeText={onSearch}
+        />
+      </View>
+      <TouchableOpacity style={styles.headerNotifBtn}>
+        <Ionicons name="notifications-outline" size={24} color="#2563eb" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function FeedTab() {
+  return (
+    <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <StoriesSection />
+      <TrendingTopics />
+      <ChallengesSection />
+      <LeaderboardSection />
+      <CommunitySection />
+    </ScrollView>
+  );
+}
+
+function QATab() {
+  return (
+    <View style={styles.tabPlaceholder}><Text style={styles.tabPlaceholderText}>Q&A coming soon...</Text></View>
+  );
+}
+
+function EventsTab() {
+  return (
+    <View style={styles.tabPlaceholder}><Text style={styles.tabPlaceholderText}>Events coming soon...</Text></View>
+  );
+}
+
+function LeaderboardTab() {
+  return (
+    <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <LeaderboardSection />
+    </ScrollView>
+  );
+}
+
 export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('feed');
+  const scrollRef = useRef(null);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Simulate refresh
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
   }, []);
 
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <LeaderboardSection />
-      <QuestsSection />
-      <CommunitySection />
-    </ScrollView>
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+      <StickyHeader />
+      {/* Tab bar */}
+      <View style={styles.tabBar}>
+        <Pressable style={[styles.tabBtn, activeTab === 'feed' && styles.tabBtnActive]} onPress={() => setActiveTab('feed')}>
+          <Text style={[styles.tabBtnText, activeTab === 'feed' && styles.tabBtnTextActive]}>Feed</Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, activeTab === 'qa' && styles.tabBtnActive]} onPress={() => setActiveTab('qa')}>
+          <Text style={[styles.tabBtnText, activeTab === 'qa' && styles.tabBtnTextActive]}>Q&A</Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, activeTab === 'events' && styles.tabBtnActive]} onPress={() => setActiveTab('events')}>
+          <Text style={[styles.tabBtnText, activeTab === 'events' && styles.tabBtnTextActive]}>Events</Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, activeTab === 'leaderboard' && styles.tabBtnActive]} onPress={() => setActiveTab('leaderboard')}>
+          <Text style={[styles.tabBtnText, activeTab === 'leaderboard' && styles.tabBtnTextActive]}>Leaderboard</Text>
+        </Pressable>
+      </View>
+      {/* Tab content */}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'feed' && <FeedTab />}
+        {activeTab === 'qa' && <QATab />}
+        {activeTab === 'events' && <EventsTab />}
+        {activeTab === 'leaderboard' && <LeaderboardTab />}
+      </View>
+      {/* Floating action button */}
+      <TouchableOpacity style={styles.fab}>
+        <Ionicons name="add" size={32} color="#fff" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -627,5 +882,259 @@ const styles = StyleSheet.create({
   eventParticipantsText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
-  }
+  },
+  storiesContainer: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  storiesList: {
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  storyItem: {
+    alignItems: 'center',
+    width: 72,
+  },
+  storyGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    padding: 2,
+    marginBottom: 4,
+  },
+  storyAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  storyUsername: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    width: '100%',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#020733',
+  },
+  trendingContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  trendingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#020733',
+    marginBottom: 12,
+  },
+  topicsList: {
+    gap: 8,
+  },
+  topicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  topicName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+    marginRight: 4,
+  },
+  challengesContainer: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  challengeCard: {
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  challengeGradient: {
+    padding: 16,
+  },
+  challengeContent: {
+    gap: 12,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  challengeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  challengeType: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  challengeTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  challengeDescription: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 20,
+  },
+  challengeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+  },
+  challengeStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  challengeStatText: {
+    fontSize: 14,
+    color: '#fff',
+  },
+  joinButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  joinButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+  },
+  seeAllButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+  },
+  communityContainer: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  newPostText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2563eb',
+  },
+  stickyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 10,
+    backgroundColor: '#f8fafc',
+    zIndex: 10,
+  },
+  headerSearchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 12,
+  },
+  headerSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#222',
+  },
+  headerNotifBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingVertical: 4,
+    zIndex: 5,
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  tabBtnActive: {
+    backgroundColor: '#2563eb',
+  },
+  tabBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  tabBtnTextActive: {
+    color: '#fff',
+  },
+  tabPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  tabPlaceholderText: {
+    fontSize: 18,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 32,
+    backgroundColor: '#2563eb',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 20,
+  },
 });

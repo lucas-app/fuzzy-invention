@@ -19,7 +19,7 @@ import {
   ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchTasks, submitAnnotation } from '../services/LabelStudioService';
+import LabelStudioService from '../services/LabelStudioService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,7 +55,7 @@ const TaskScreen = () => {
       setError(null);
       setLoading(true);
 
-      const tasksData = await fetchTasks(taskType);
+      const tasksData = await LabelStudioService.fetchTasks(taskType);
       console.log(`TaskScreen: Fetched ${taskType} Tasks:`, tasksData);
       
       // Debug: Log the first task's data structure
@@ -256,7 +256,7 @@ const TaskScreen = () => {
       
       setSubmitting(true);
       try {
-        await submitAnnotation(currentTask.id, currentTask.selectedSentiment, TASK_TYPES.TEXT_SENTIMENT);
+        await LabelStudioService.submitAnnotation(currentTask.id, currentTask.selectedSentiment, TASK_TYPES.TEXT_SENTIMENT);
         Alert.alert('Success', 'Sentiment annotation submitted successfully');
         
         // Mark task as completed
@@ -287,7 +287,7 @@ const TaskScreen = () => {
       
       setSubmitting(true);
       try {
-        await submitAnnotation(currentTask.id, currentTask.selectedAnimal, TASK_TYPES.IMAGE_CLASSIFICATION);
+        await LabelStudioService.submitAnnotation(currentTask.id, currentTask.selectedAnimal, TASK_TYPES.IMAGE_CLASSIFICATION);
         Alert.alert('Success', 'Image classification submitted successfully');
         
         // Mark task as completed

@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Platform, TouchableOpacity, Alert } from 'react-native';
+import { router, Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,28 +11,42 @@ const LOGO_URL = 'https://i.ibb.co/rnTcSMX/LUCAS-bluegreen-gradient-logo-and-whi
 
 export default function SplashScreen() {
   const { user } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // If user is already authenticated, redirect to tasks
-    if (user) {
-      router.replace('/(tabs)/tasks');
-    }
-    
-    // Check for previous use
-    checkPreviousUse();
-  }, [user]);
+    // Mark component as mounted
+    setIsMounted(true);
+  }, []);
 
-  const checkPreviousUse = async () => {
-    try {
-      const hasUsedBefore = await AsyncStorage.getItem('has_used_app');
-      if (hasUsedBefore === 'true' && !user) {
-        // If user has used the app before but is not logged in, go to login
-        router.replace('/(auth)/login');
+  useEffect(() => {
+    // Only proceed with navigation after the component is mounted
+    if (!isMounted) return;
+
+    const handleInitialNavigation = async () => {
+      try {
+        // If user is already authenticated, redirect to tasks
+        if (user) {
+          setTimeout(() => {
+            router.replace('/(tabs)/tasks');
+          }, 0);
+          return;
+        }
+        
+        // Check for previous use
+        const hasUsedBefore = await AsyncStorage.getItem('has_used_app');
+        if (hasUsedBefore === 'true' && !user) {
+          // If user has used the app before but is not logged in, go to login
+          setTimeout(() => {
+            router.replace('/(auth)/login');
+          }, 0);
+        }
+      } catch (error) {
+        console.error('Error during initial navigation:', error);
       }
-    } catch (error) {
-      console.error('Error checking previous use:', error);
-    }
-  };
+    };
+
+    handleInitialNavigation();
+  }, [user, isMounted]);
 
   const handleGetStarted = async () => {
     try {
@@ -49,6 +63,23 @@ export default function SplashScreen() {
   const handleSignIn = () => {
     router.push('/(auth)/login');
   };
+
+  // Debug environment variables
+  useEffect(() => {
+    console.log('ENV DEBUG - SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+    console.log('ENV DEBUG - SUPABASE_ANON_KEY exists:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+    console.log('ENV DEBUG - SUPABASE_SERVICE_KEY exists:', !!process.env.EXPO_PUBLIC_SUPABASE_SERVICE_KEY);
+
+    if (!process.env.EXPO_PUBLIC_SUPABASE_URL || 
+        !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+        !process.env.EXPO_PUBLIC_SUPABASE_SERVICE_KEY) {
+      Alert.alert(
+        'Configuration Error',
+        'Supabase environment variables are missing. Please check your .env file.',
+        [{ text: 'OK' }]
+      );
+    }
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -96,6 +127,42 @@ export default function SplashScreen() {
       </View>
       
       <Text style={styles.versionText}>v1.0.0</Text>
+      
+      {/* Temporary admin button */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          right: 20,
+          backgroundColor: '#6200ee',
+          padding: 10,
+          borderRadius: 8,
+          zIndex: 1000,
+        }}
+        onPress={() => {
+          router.push('/labelstudio/admin/CreateAudioTasks');
+        }}
+      >
+        <Text style={{ color: 'white' }}>Admin</Text>
+      </TouchableOpacity>
+      
+      {/* Diagnostics button */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          left: 20,
+          backgroundColor: '#007AFF',
+          padding: 10,
+          borderRadius: 8,
+          zIndex: 1000,
+        }}
+        onPress={() => {
+          router.push('/labelstudio/admin/CheckAudioTasks');
+        }}
+      >
+        <Text style={{ color: 'white' }}>Diagnostics</Text>
+      </TouchableOpacity>
     </View>
   );
 }

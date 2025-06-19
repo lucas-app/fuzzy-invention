@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
@@ -16,8 +17,8 @@ const INVESTMENT_OPTIONS = {
     { id: 'qqq', name: 'Nasdaq 100', symbol: 'QQQ', price: 412.34, change: 1.12 },
   ],
   yield: [
-    { id: 'usdc-aave', name: 'USDC on Aave', apy: 4.23, provider: 'Aave' },
-    { id: 'usdc-comp', name: 'USDC on Compound', apy: 3.89, provider: 'Compound' },
+    { id: 'usdt-aave', name: 'USDT on Aave', apy: 4.23, provider: 'Aave' },
+    { id: 'usdt-comp', name: 'USDT on Compound', apy: 3.89, provider: 'Compound' },
   ],
 };
 
@@ -177,7 +178,7 @@ export default function InvestScreen() {
     <View style={styles.mainContainer}>
       <ScrollView style={styles.container}>
         <LinearGradient
-          colors={['#020733', '#041454']}
+          colors={['#0057FF', '#00B2FF']}
           style={styles.header}
         >
           <View style={styles.portfolioCard}>
@@ -196,10 +197,9 @@ export default function InvestScreen() {
                 <Text style={styles.statLabel}>Performance</Text>
                 <Text style={[
                   styles.statValue,
-                  { color: mockPortfolio.performance >= 0 ? '#10B981' : '#EF4444' }
+                  { color: mockPortfolio.performance >= 0 ? '#10B981' : '#EF4444', fontWeight: 'bold' }
                 ]}>
-                  {mockPortfolio.performance >= 0 ? '+' : ''}
-                  {mockPortfolio.performance}%
+                  {mockPortfolio.performance >= 0 ? '+' : ''}{mockPortfolio.performance}%
                 </Text>
               </View>
             </View>
@@ -223,24 +223,43 @@ export default function InvestScreen() {
         </LinearGradient>
 
         <View style={styles.content}>
-          <View style={styles.categoryTabs}>
-            {Object.keys(INVESTMENT_OPTIONS).map((category) => (
-              <Pressable
-                key={category}
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === category && styles.categoryTabActive
-                ]}
-                onPress={() => setSelectedCategory(category)}
-              >
-                <Text style={[
-                  styles.categoryTabText,
-                  selectedCategory === category && styles.categoryTabTextActive
-                ]}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
+          <View style={styles.categorySelector}>
+            <Pressable
+              style={[
+                styles.categoryButton,
+                selectedCategory === 'yield' && styles.categoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory('yield')}
+            >
+              <Text style={[
+                styles.categoryButtonText,
+                selectedCategory === 'yield' && styles.categoryButtonTextActive
+              ]}>Savings</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.categoryButton,
+                selectedCategory === 'crypto' && styles.categoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory('crypto')}
+            >
+              <Text style={[
+                styles.categoryButtonText,
+                selectedCategory === 'crypto' && styles.categoryButtonTextActive
+              ]}>Crypto</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.categoryButton,
+                selectedCategory === 'stocks' && styles.categoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory('stocks')}
+            >
+              <Text style={[
+                styles.categoryButtonText,
+                selectedCategory === 'stocks' && styles.categoryButtonTextActive
+              ]}>Stocks</Text>
+            </Pressable>
           </View>
 
           <View style={styles.assetList}>
@@ -309,30 +328,30 @@ const styles = StyleSheet.create({
   },
   portfolioLabel: {
     fontSize: 16,
-    color: '#94A3B8',
+    color: '#fff',
     marginBottom: 8,
   },
   portfolioValue: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 16,
   },
   portfolioStats: {
     flexDirection: 'row',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   portfolioStat: {
     flex: 1,
   },
   statLabel: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#fff',
     marginBottom: 4,
   },
   statValue: {
     fontSize: 18,
-    fontWeight: '600',
     color: '#fff',
   },
   actionButtons: {
@@ -362,26 +381,26 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  categoryTabs: {
+  categorySelector: {
     flexDirection: 'row',
     marginBottom: 20,
     gap: 12,
   },
-  categoryTab: {
+  categoryButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#f1f5f9',
   },
-  categoryTabActive: {
+  categoryButtonActive: {
     backgroundColor: '#020733',
   },
-  categoryTabText: {
+  categoryButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#64748B',
   },
-  categoryTabTextActive: {
+  categoryButtonTextActive: {
     color: '#fff',
   },
   assetList: {

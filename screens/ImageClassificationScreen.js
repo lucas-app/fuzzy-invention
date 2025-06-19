@@ -17,7 +17,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { fetchTasks, submitAnnotation } from '../services/LabelStudioService';
+import LabelStudioService from '../services/LabelStudioService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,7 +44,7 @@ const ImageClassificationScreen = () => {
       console.log('ImageClassificationScreen: Loading image classification tasks...');
       setError(null);
 
-      const tasksData = await fetchTasks('IMAGE_CLASSIFICATION');
+      const tasksData = await LabelStudioService.fetchTasks('IMAGE_CLASSIFICATION');
       console.log('ImageClassificationScreen: Fetched Tasks:', tasksData);
 
       if (!tasksData || tasksData.length === 0) {
@@ -169,7 +169,7 @@ const ImageClassificationScreen = () => {
     
     setSubmitting(true);
     try {
-      await submitAnnotation(currentTask.id, currentTask.selectedAnimal, 'IMAGE_CLASSIFICATION');
+      await LabelStudioService.submitAnnotation(currentTask.id, currentTask.selectedAnimal, 'IMAGE_CLASSIFICATION');
       Alert.alert('Success', 'Annotation submitted successfully');
       // Move to next task after successful submission
       if (currentIndex < tasks.length - 1) {

@@ -9,14 +9,16 @@ import {
   Image,
   Platform,
   Dimensions,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WEB3_TASKS } from '../../../data/tasks';
 import { useTaskStore } from '../../../store/taskStore';
 import { Stack } from 'expo-router';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInRight, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import TaskCard from './CardDesign'; // Import our new premium card design
 
 // Get screen dimensions
@@ -25,9 +27,10 @@ const cardWidth = (width - 48) / 2; // Two cards per row with spacing
 
 // Color palette as specified - refined for more pastel look
 const COLORS = {
-  // Background gradient
-  backgroundStart: '#FFEFEA',
-  backgroundEnd: '#FBDDE3',
+  // Background gradient (electric blue)
+  backgroundStart: '#0057FF', // Electric blue
+  backgroundEnd: '#00B2FF',   // Bright blue
+  backgroundAccent: '#3ECFFF', // Cyan accent for shapes
   
   // Card colors (with softer pastel gradients)
   imageCardStart: '#37EED9',  // Lighter, more pastel teal
@@ -49,17 +52,25 @@ const COLORS = {
   // UI Elements
   lucasLogo: '#00C4B4',       // Teal logo color
   hotText: '#FF6A3D',         // Hot orange text
-  statsPanel: 'rgba(255,255,255,0.6)', // Translucent white
+  statsPanel: 'rgba(255,255,255,0.6)', // Match 'Hey Max' background
   cardText: '#FFFFFF',        // White text on cards
   subtleText: '#FDFDFD',      // Very light gray text
   coinIcon: '#FFD700',        // Gold coin color
   
   // Enhanced neumorphism effects
-  shadowLight: 'rgba(255,255,255,0.9)',  // Brighter highlight
-  shadowDark: 'rgba(86,86,102,0.3)',     // Darker shadow for more contrast
-  innerGlow: 'rgba(255,255,255,0.25)',   // Stronger inner glow
-  cardOverlay: 'rgba(255,255,255,0.08)', // Card surface sheen
-  badgeGlow: 'rgba(0,0,0,0.15)',         // Subtle glow under badges
+  shadowLight: 'rgba(255,255,255,0.2)',
+  shadowDark: 'rgba(86,86,102,0.3)',
+  innerGlow: 'rgba(255,255,255,0.10)',
+  cardOverlay: 'rgba(255,255,255,0.08)',
+  badgeGlow: 'rgba(0,0,0,0.15)',
+
+  // New colors for filters and progress
+  filterBg: 'rgba(255,255,255,0.08)',
+  filterText: '#E0E6F7',
+  filterActive: '#5E5CE6',
+  filterActiveText: '#FFF',
+  progressTrack: 'rgba(255,255,255,0.2)',
+  progressFill: '#5E5CE6',
 };
 
 // Task types that connect to Label Studio API
@@ -73,85 +84,143 @@ type TaskType = {
   gradientEnd: string;
   projectType: string;
   reward: string;
-  badgeType?: 'NEW' | 'HOT' | 'QUICK';
+  badgeType?: 'NEW' | 'HOT' | 'QUICK' | 'PREMIUM' | 'TRENDING' | 'SPECIAL';
   tasks?: any[];
+  estimatedTime: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
 };
 
 // Task type definitions with exact colors from the palette
 const TASK_TYPES: TaskType[] = [
   {
-    id: 'image',
-    title: 'Image Classification',
-    description: 'Help train AI models by classifying images',
-    icon: 'image',
-    labelColor: COLORS.imageLabel,
-    gradientStart: COLORS.imageCardStart,
-    gradientEnd: COLORS.imageCardEnd,
-    projectType: 'IMAGE_CLASSIFICATION',
-    reward: '0,05-$10,00',
+    id: 'photos',
+    title: 'Capture Real-World Photos',
+    description: 'Take pictures of stores, signs, streets & more',
+    icon: 'camera',
+    labelColor: '#37D2A0',
+    gradientStart: '#37D2A0',
+    gradientEnd: '#10B386',
+    projectType: 'IMAGE_CAPTURE',
+    reward: '$0.50-$5.00',
     badgeType: 'NEW',
+    estimatedTime: '2-5 min',
+    difficulty: 'Easy',
   },
   {
-    id: 'text',
-    title: 'Text Analysis',
-    description: 'Analyze text sentiment to improve services',
+    id: 'ai-chat',
+    title: 'Rate AI Chat Responses',
+    description: 'Help train better conversations in Spanish',
     icon: 'chatbubble-ellipses',
-    labelColor: COLORS.textLabel,
-    gradientStart: COLORS.textCardStart,
-    gradientEnd: COLORS.textCardEnd,
-    projectType: 'TEXT_SENTIMENT',
-    reward: '0,05-$10,00',
+    labelColor: '#FF7E58',
+    gradientStart: '#FF7E58',
+    gradientEnd: '#FF5630',
+    projectType: 'CHAT_RATING',
+    reward: '$0.25-$3.00',
     badgeType: 'HOT',
+    estimatedTime: '1-3 min',
+    difficulty: 'Easy',
   },
   {
-    id: 'audio',
-    title: 'Audio Classification',
-    description: 'Classify sounds and audio recordings',
-    icon: 'musical-notes',
-    labelColor: COLORS.audioLabel,
-    gradientStart: COLORS.audioCardStart,
-    gradientEnd: COLORS.audioCardEnd,
-    projectType: 'AUDIO_CLASSIFICATION',
-    reward: '0,05-$10,00',
+    id: 'voice',
+    title: 'Record Your Voice',
+    description: 'Speak, read, and transcribe to teach Voice AI',
+    icon: 'mic',
+    labelColor: '#49A0FF',
+    gradientStart: '#49A0FF',
+    gradientEnd: '#3B82F6',
+    projectType: 'VOICE_RECORDING',
+    reward: '$0.75-$8.00',
     badgeType: 'QUICK',
+    estimatedTime: '3-5 min',
+    difficulty: 'Medium',
   },
   {
-    id: 'survey',
-    title: 'Survey Tasks',
-    description: 'Complete 3 tasks to earn a bonus!',
-    icon: 'checkmark-circle',
-    labelColor: COLORS.surveyLabel,
-    gradientStart: COLORS.surveyCardStart,
-    gradientEnd: COLORS.surveyCardEnd,
-    projectType: 'SURVEY',
-    reward: '0,05-$10,00',
-    badgeType: 'QUICK',
-  },
-  {
-    id: 'geospatial',
-    title: 'Geospatial Labeling',
-    description: 'Identify features in satellite imagery',
-    icon: 'globe',
-    labelColor: '#CC4B00', // Dark orange label
-    gradientStart: '#FF8C38', // Warm orange gradient
-    gradientEnd: '#FF6A3D',
-    projectType: 'GEOSPATIAL_LABELING',
-    reward: '0,05-$10,00',
-    badgeType: 'HOT',
+    id: 'feedback',
+    title: 'Give Feedback on an App',
+    description: 'Review design, language & cultural fit',
+    icon: 'star',
+    labelColor: '#F986E5',
+    gradientStart: '#F986E5',
+    gradientEnd: '#E55EDF',
+    projectType: 'APP_FEEDBACK',
+    reward: '$1.00-$10.00',
+    badgeType: 'PREMIUM',
+    estimatedTime: '5-10 min',
+    difficulty: 'Medium',
   },
   {
     id: 'web3',
     title: 'Web3 Tasks',
-    description: 'Earn crypto rewards for DeFi, NFT, and DAO contributions',
+    description: 'Follow, join, and engage with top Web3 projects',
     icon: 'logo-bitcoin',
-    labelColor: '#4731D3',
+    labelColor: '#FFB869',
+    gradientStart: '#FFB869',
+    gradientEnd: '#FF9F1C',
+    projectType: 'CRYPTO_PROMO',
+    reward: '$0.50-$15.00',
+    badgeType: 'TRENDING',
+    estimatedTime: '2-8 min',
+    difficulty: 'Easy',
+    tasks: [
+      {
+        id: '1',
+        type: 'twitter-follow',
+        title: 'Follow Project X on Twitter',
+        description: 'Follow @ProjectX to stay updated and earn rewards.',
+        url: 'https://twitter.com/ProjectX',
+      },
+      {
+        id: '2',
+        type: 'discord-join',
+        title: 'Join Project X Discord',
+        description: 'Join the Project X Discord community and say hello!',
+        url: 'https://discord.gg/projectx',
+      },
+      {
+        id: '3',
+        type: 'airdrop',
+        title: 'Participate in Project X Airdrop',
+        description: 'Complete the airdrop form to get a chance to win tokens.',
+        url: 'https://projectx.com/airdrop',
+      },
+      {
+        id: '4',
+        type: 'twitter-retweet',
+        title: 'Retweet Project X Announcement',
+        description: 'Retweet the latest announcement to spread the word.',
+        url: 'https://twitter.com/ProjectX/status/1234567890',
+      },
+      {
+        id: '5',
+        type: 'telegram-join',
+        title: 'Join Project X Telegram',
+        description: 'Join the Telegram group for exclusive updates.',
+        url: 'https://t.me/projectx',
+      },
+    ],
+  },
+  {
+    id: 'bonus',
+    title: 'Explore Bonus Missions',
+    description: 'Try new tasks, features & partner drops',
+    icon: 'gift',
+    labelColor: '#6C5DD3',
     gradientStart: '#6C5DD3',
     gradientEnd: '#4731D3',
-    projectType: 'WEB3',
-    reward: '10-30 LUCAS',
-    tasks: Object.values(WEB3_TASKS),
-    badgeType: 'NEW',
-  },
+    projectType: 'BONUS_MISSIONS',
+    reward: '$1.00-$20.00',
+    badgeType: 'SPECIAL',
+    estimatedTime: '5-15 min',
+    difficulty: 'Medium',
+  }
+];
+
+// Filter options
+const FILTER_OPTIONS = [
+  { id: 'all', label: 'All Tasks', icon: 'apps' },
+  { id: 'hot', label: 'Hot', icon: 'flame' },
+  { id: 'quick', label: 'Quick', icon: 'flash' },
+  { id: 'new', label: 'New', icon: 'star' },
 ];
 
 // Shimmer particle component for background effects
@@ -175,12 +244,19 @@ function TaskTypeCard({ taskType }: { taskType: TaskType }) {
     // Add haptic feedback here if needed
     console.log('Button pressed for:', taskType.id);
     
-    // Preserve the original navigation logic
     if (taskType.id === 'web3') {
-      // For Web3 tasks, use the existing navigation
       router.push(`/tasks/${taskType.id}`);
+    } else if (taskType.id === 'photos') {
+      router.push('/tasks/photos');
+    } else if (taskType.id === 'ai-chat') {
+      router.push('/tasks/ai-chat');
+    } else if (taskType.id === 'voice') {
+      router.push('/tasks/voice');
+    } else if (taskType.id === 'feedback') {
+      router.push('/tasks/feedback');
+    } else if (taskType.id === 'bonus') {
+      router.push('/tasks/bonus');
     } else {
-      // For Label Studio tasks, navigate to the dedicated Label Studio screens
       router.push({
         pathname: '/labelstudio',
         params: { projectType: taskType.projectType }
@@ -207,14 +283,125 @@ function TaskTypeCard({ taskType }: { taskType: TaskType }) {
   );
 }
 
+// Custom LUCAS logo component
+function LucasLogo() {
+  return (
+    <View style={styles.logoContainer}>
+      {/* Primary image logo */}
+      <Image 
+        source={require('../../../assets/images/transparente.png')} 
+        style={styles.logoImage}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
 function TasksScreen() {
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
   const { completedTasks, fetchUserStats } = useTaskStore();
+  const [taskProgress, setTaskProgress] = useState({
+    daily: 0,
+    weekly: 40,
+    monthly: 65,
+  });
+  
+  // Animation values for pull-to-search
+  const scrollY = useSharedValue(0);
+  const searchBarHeight = useSharedValue(0);
+  const searchBarOpacity = useSharedValue(0);
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  
+  // Define constants for the pull-to-search feature
+  const SEARCH_BAR_MAX_HEIGHT = 60;
+  const PULL_THRESHOLD = 80; // How far to pull down to reveal search
+  
+  // Handle scroll events for pull-to-search
+  const handleScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      // Update scroll position
+      scrollY.value = event.contentOffset.y;
+      
+      // Only handle pull-down animation if search isn't already visible
+      if (!isSearchVisible && event.contentOffset.y < 0) {
+        // Calculate height and opacity based on pull distance
+        const pullDistance = Math.abs(event.contentOffset.y);
+        // Set height proportional to pull distance
+        searchBarHeight.value = Math.min(pullDistance * 0.5, SEARCH_BAR_MAX_HEIGHT);
+        // Set opacity based on how close to threshold
+        searchBarOpacity.value = Math.min(pullDistance / PULL_THRESHOLD, 1);
+      }
+    },
+    onEndDrag: (event) => {
+      // When user stops dragging and search isn't already visible
+      if (!isSearchVisible && event.contentOffset.y < -PULL_THRESHOLD) {
+        // If pulled enough, show search bar
+        searchBarHeight.value = withSpring(SEARCH_BAR_MAX_HEIGHT);
+        searchBarOpacity.value = withSpring(1);
+        // Update state to track visibility
+        runOnJS(setIsSearchVisible)(true);
+      } else if (!isSearchVisible && event.contentOffset.y < 0) {
+        // If not pulled enough and search not visible, hide it
+        searchBarHeight.value = withSpring(0);
+        searchBarOpacity.value = withSpring(0);
+      }
+    }
+  });
+  
+  // Effect to update animated values when visibility changes
+  useEffect(() => {
+    if (isSearchVisible) {
+      searchBarHeight.value = withSpring(SEARCH_BAR_MAX_HEIGHT);
+      searchBarOpacity.value = withSpring(1);
+    } else {
+      searchBarHeight.value = withSpring(0);
+      searchBarOpacity.value = withSpring(0);
+    }
+  }, [isSearchVisible]);
+  
+  // Animated styles for search container
+  const searchContainerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      height: isSearchVisible ? SEARCH_BAR_MAX_HEIGHT : searchBarHeight.value,
+      opacity: isSearchVisible ? 1 : searchBarOpacity.value,
+      overflow: 'hidden',
+    };
+  });
+  
+  // Hide search function
+  const hideSearch = () => {
+    setIsSearchVisible(false);
+  };
 
   useEffect(() => {
     // Load user stats
     fetchUserStats();
+    // Simulate fetching task progress
+    // In real app, this would come from your backend
+    setTaskProgress({
+      daily: Math.floor(Math.random() * 100),
+      weekly: Math.floor(Math.random() * 100),
+      monthly: Math.floor(Math.random() * 100),
+    });
   }, []);
+
+  // Filter tasks based on search and filter
+  const filteredTasks = TASK_TYPES.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = activeFilter === 'all' || 
+                         (task.badgeType?.toLowerCase() === activeFilter);
+    return matchesSearch && matchesFilter;
+  });
+
+  const goToDebugger = () => {
+    router.push({
+      pathname: '/labelstudio',
+      params: { projectType: 'DEBUG' }
+    });
+  };
 
   // Generate random positions for shimmer particles
   const particles = Array(15).fill(0).map((_, i) => ({
@@ -232,12 +419,11 @@ function TasksScreen() {
         <View style={styles.userInfoContainer}>
           {/* Avatar with person icon */}
           <View style={styles.avatarContainer}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.9)', 'rgba(240,240,255,0.85)']}
-              style={styles.avatarGradient}
-            >
-              <Ionicons name="person-circle" size={22} color="#5E5CE6" />
-            </LinearGradient>
+            <Image
+              source={require('../../../assets/images/capy.png')}
+              style={styles.avatarImage}
+              resizeMode="cover"
+            />
           </View>
           
           {/* Welcome text */}
@@ -246,12 +432,105 @@ function TasksScreen() {
           </View>
         </View>
         
-        {/* LUCAS logo with glow effect */}
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>LUCAS</Text>
-        </View>
+        {/* LUCAS logo */}
+        <LucasLogo />
       </Animated.View>
     )
+  }
+
+  // New search component that appears on pull-down
+  function renderPullToSearchBar() {
+    return (
+      <Animated.View style={[styles.pullSearchContainer, searchContainerAnimatedStyle]}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
+            autoFocus={isSearchVisible}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={18} color="#999" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={hideSearch} style={styles.closeButton}>
+            <Ionicons name="chevron-up" size={22} color="#666" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContainer}
+        >
+          {FILTER_OPTIONS.map((filter) => (
+            <Pressable
+              key={filter.id}
+              style={[
+                styles.filterButton,
+                activeFilter === filter.id && styles.filterButtonActive
+              ]}
+              onPress={() => setActiveFilter(filter.id)}
+            >
+              <Ionicons 
+                name={filter.icon as any} 
+                size={16} 
+                color={activeFilter === filter.id ? '#FFF' : '#666'} 
+              />
+              <Text style={[
+                styles.filterText,
+                activeFilter === filter.id && styles.filterTextActive
+              ]}>
+                {filter.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </Animated.View>
+    );
+  }
+
+  // Enhanced stats section with progress
+  function renderStats() {
+    const monthlyGoal = 12; // Mock value
+    const completed = 7; // Mock value for demonstration
+    const monthlyProgress = Math.min(completed / monthlyGoal, 1);
+    return (
+      <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.statsContainerOuter}>
+        <View style={styles.statsContainerInner}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{taskProgress.daily}</Text>
+              <Text style={styles.statLabel}>Daily Progress</Text>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${taskProgress.daily}%` }]} />
+              </View>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{taskProgress.weekly}</Text>
+              <Text style={styles.statLabel}>Weekly Goal</Text>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${taskProgress.weekly}%` }]} />
+              </View>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{monthlyGoal}</Text>
+              <Text style={styles.statLabel}>Monthly Goal</Text>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${monthlyProgress * 100}%` }]} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    );
   }
 
   return (
@@ -267,9 +546,14 @@ function TasksScreen() {
         colors={[COLORS.backgroundStart, COLORS.backgroundEnd]}
         style={StyleSheet.absoluteFillObject}
       />
-      
-      {/* Create subtle texture pattern */}
-      <View style={styles.patternOverlay} />
+      {/* Abstract blue shapes overlay for depth */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {/* Electric blue and cyan blurred blobs/circles for depth */}
+        <View style={[styles.blob, { backgroundColor: COLORS.backgroundAccent, top: 80, left: -60, width: 200, height: 200, opacity: 0.13, borderRadius: 100 }]} />
+        <View style={[styles.blob, { backgroundColor: '#0057FF', top: 320, right: -80, width: 180, height: 180, opacity: 0.12, borderRadius: 90 }]} />
+        <View style={[styles.blob, { backgroundColor: '#00B2FF', bottom: 60, left: 60, width: 140, height: 140, opacity: 0.14, borderRadius: 70 }]} />
+        <View style={[styles.blob, { backgroundColor: '#3ECFFF', bottom: -40, right: 30, width: 120, height: 120, opacity: 0.11, borderRadius: 60 }]} />
+      </View>
       
       {/* Subtle glow in corners */}
       <View style={styles.cornerGlow1} />
@@ -295,56 +579,84 @@ function TasksScreen() {
       {/* Custom header with logo */}
       {renderHeader()}
       
-      {/* Stats bar with neumorphic styling */}
-      <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.statsContainerOuter}>
-        <View style={styles.statsContainerInner}>
-          {/* Render stats - more compact layout */}
-          <View style={styles.statsContainer}>
-            {/* Available Tasks */}
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>8</Text>
-              <Text style={styles.statLabel}>Available</Text>
-            </View>
-            
-            {/* Separator */}
-            <View style={styles.statDivider}></View>
-            
-            {/* Completed Tasks */}
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            
-            {/* Separator */}
-            <View style={styles.statDivider}></View>
-            
-            {/* New Tasks with HOT badge */}
-            <View style={styles.statItem}>
-              <Text style={styles.hotStatText}>HOT</Text>
-              <Text style={styles.statLabel}>New Tasks</Text>
-              <Ionicons name="filter" size={14} color="#555" style={styles.filterIcon} />
-            </View>
-          </View>
-        </View>
-      </Animated.View>
+      {/* Pull-to-reveal search bar */}
+      {renderPullToSearchBar()}
+      
+      {/* Stats section */}
+      {renderStats()}
 
       {/* Task type cards */}
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         <View style={styles.tasksGrid}>
-          {TASK_TYPES.map((taskType) => (
-            <TaskTypeCard key={taskType.id} taskType={taskType} />
+          {filteredTasks.map((taskType, index) => (
+            <Animated.View
+              key={taskType.id}
+              entering={FadeInRight.delay(index * 100).duration(600)}
+            >
+              <TaskCard
+                title={taskType.title}
+                badgeText={taskType.badgeType}
+                iconName={taskType.icon as any}
+                reward={taskType.reward}
+                gradientStart={taskType.gradientStart}
+                gradientEnd={taskType.gradientEnd}
+                badgeColor={taskType.labelColor}
+                showProgress={taskType.id === 'survey'}
+                description={taskType.description}
+                estimatedTime={taskType.estimatedTime}
+                difficulty={taskType.difficulty}
+                onPress={() => {
+                  if (taskType.id === 'web3') {
+                    router.push(`/tasks/${taskType.id}`);
+                  } else if (taskType.id === 'photos') {
+                    router.push('/tasks/photos');
+                  } else if (taskType.id === 'ai-chat') {
+                    router.push('/tasks/ai-chat');
+                  } else if (taskType.id === 'voice') {
+                    router.push('/tasks/voice');
+                  } else if (taskType.id === 'feedback') {
+                    router.push('/tasks/feedback');
+                  } else if (taskType.id === 'bonus') {
+                    router.push('/tasks/bonus');
+                  } else {
+                    router.push({
+                      pathname: '/labelstudio',
+                      params: { projectType: taskType.projectType }
+                    });
+                  }
+                }}
+              />
+            </Animated.View>
           ))}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={COLORS.textCardStart} />
         </View>
+      )}
+      
+      {/* Pull down indicator */}
+      {!isSearchVisible && (
+        <Animated.View 
+          style={[
+            styles.pullDownIndicator,
+            {
+              opacity: searchBarOpacity.value,
+              transform: [{ translateY: scrollY.value < 0 ? scrollY.value / 2 : 0 }]
+            }
+          ]}
+        >
+          <Ionicons name="search" size={24} color="#666" />
+          <Text style={styles.pullDownText}>Pull down to search</Text>
+        </Animated.View>
       )}
     </View>
   );
@@ -361,7 +673,7 @@ const styles = StyleSheet.create({
   cornerGlow1: {
     position: 'absolute',
     top: -100,
-    right: -100,
+    left: -100,
     width: 300,
     height: 300,
     borderRadius: 150,
@@ -422,14 +734,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  avatarGradient: {
-    width: '100%',
-    height: '100%',
+  avatarImage: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
   },
   welcomeContainer: {
     justifyContent: 'center',
@@ -443,19 +751,16 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    height: 40, 
+    width: 140,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    overflow: 'hidden',
   },
-  logoText: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: COLORS.lucasLogo,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Rounded' : 'sans-serif',
-    // Add glow to logo text
-    textShadowColor: 'rgba(0,196,180,0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-    // Slight padding for better appearance
-    paddingHorizontal: 5,
-    letterSpacing: 0.5,
+  logoImage: {
+    width: 130,
+    height: 40,
   },
   statsContainerOuter: {
     marginHorizontal: 20,
@@ -479,16 +784,13 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
   },
   statNumber: {
     fontSize: 18,
@@ -694,6 +996,123 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // New styles for search and filters
+  pullSearchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 84 : 64,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    // Enhanced shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    height: 40,
+    // Add a subtle inner shadow
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    height: 40,
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterContainer: {
+    paddingRight: 20,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.filterBg,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  filterButtonActive: {
+    backgroundColor: COLORS.filterActive,
+  },
+  filterText: {
+    fontSize: 14,
+    color: COLORS.filterText,
+    marginLeft: 4,
+  },
+  filterTextActive: {
+    color: COLORS.filterActiveText,
+  },
+  // Enhanced stats styles
+  progressBar: {
+    width: '80%',
+    height: 4,
+    backgroundColor: COLORS.progressTrack,
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.progressFill,
+    borderRadius: 2,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  closeButton: {
+    padding: 6,
+    marginLeft: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pullDownIndicator: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 120 : 100,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    padding: 10,
+  },
+  pullDownText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  blob: {
+    position: 'absolute',
+    // For blur, use shadow for iOS/Android, or add a BlurView if available
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    // For web, you could use filter: 'blur(32px)', but not in RN
   },
 });
 
